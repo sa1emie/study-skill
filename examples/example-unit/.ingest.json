@@ -1,0 +1,38 @@
+{
+  "_comment": "FABRICATED EXAMPLE. Illustrates the ingest audit-trail format. Not real data.",
+  "sources": {
+    "lecture-04-membrane-transport.txt": {
+      "sha256": "example-not-a-real-hash",
+      "classified_as": "lecture-transcript",
+      "classification_basis": "Continuous explanation with no question-answer alternation and no exam references. Content lecture, not a review session.",
+      "distilled_at": "2026-02-14",
+      "corrections": [
+        {
+          "raw_token": "fossil elated diffusion",
+          "resolved_to": "facilitated diffusion",
+          "confidence": "high",
+          "basis": "Phonetic match, and 'facilitated diffusion' appears as a slide title in lecture-04.pdf, which is a typed source and therefore the vocabulary anchor."
+        },
+        {
+          "raw_token": "pine oh sight oh sis",
+          "resolved_to": "pinocytosis",
+          "confidence": "high",
+          "basis": "Phonetic match against slide vocabulary; instructor also glosses it as 'cell drinking' in the same passage."
+        },
+        {
+          "raw_token": "the grady int thing",
+          "resolved_to": null,
+          "confidence": "unresolved, DROPPED",
+          "basis": "Probably about a concentration gradient, but the sentence is too garbled to attribute a specific claim. Dropped rather than guessed, per the normalization rule."
+        }
+      ]
+    },
+    "exam2-review-session.txt": {
+      "sha256": "example-not-a-real-hash",
+      "classified_as": "review-transcript",
+      "classification_basis": "Rapid question-answer alternation, options walked and rejected aloud, and explicit statements about exam format and scope.",
+      "distilled_at": "2026-03-02",
+      "corrections": []
+    }
+  }
+}

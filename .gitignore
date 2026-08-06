@@ -1,0 +1,22 @@
+# Never commit real study units. authority.md files contain quotes attributed
+# to named instructors, and raw/ contains copyrighted course material.
+# Leading slash matters: it anchors to repo root so this does not also
+# ignore skills/study/, which is the skill itself.
+/study/
+**/raw/*
+!examples/**/raw/.gitkeep
+
+# Real state files
+mastery.json
+log.md
+unit.md
+config.md
+.ingest.json
+
+# but keep the fabricated examples
+!examples/**/mastery.json
+!examples/**/log.md
+!examples/**/unit.md
+!examples/**/.ingest.json
+
+.DS_Store
