@@ -1,18 +1,15 @@
----
-name: study
-description: >
-  Adaptive study pipeline built around how your specific instructor teaches.
-  Load whenever the request involves studying, quizzing, drilling, exam prep,
-  lecture material, or course content. Trigger phrases: "quiz me", "drill me",
-  "study", "I have an exam", "here are my slides", "here's the lecture
-  transcript", "help me learn X", "make a study plan", "what should I review",
-  "how does this professor teach", "what's going to be on the exam". Also load
-  when the user drops slides, PDFs, notes, or a lecture or review transcript
-  into a study folder. Works for university courses, standardized exams (MCAT,
-  NREMT, etc.), certifications, and self-teaching with no exam at all.
----
-
 # study
+
+> **About this file.** This is the complete, tool-agnostic instruction set for
+> the study skill. It assumes you are an AI agent with the ability to read and
+> write files. If you were handed this file directly (for example, unzipped
+> into a basic chat interface with no file system), skip straight to
+> "Degraded mode" near the end, since most of the phases below assume
+> persistent state on disk that you may not have.
+>
+> If you are a coding agent that reached this file through a pointer in
+> `SKILL.md`, `AGENTS.md`, `.cursor/rules/`, or similar: read this file in
+> full now, then follow it exactly for the rest of the session.
 
 Material in, adaptive drilling out, built around how the actual instructor
 teaches rather than around what a textbook thinks matters.
@@ -37,7 +34,6 @@ Vocabulary used throughout:
 | Loop | One drilling method (retrieval quiz, faded worked example, etc). |
 | Yield | How likely a concept is to be assessed, with evidence. |
 
----
 
 ## Layout
 
@@ -58,7 +54,6 @@ Study root: `~/study/` by default. Override by setting a different root in
 
 Five files and one folder. Do not add more without a phase that reads it back.
 
----
 
 ## Configuration
 
@@ -76,7 +71,6 @@ Optional `~/study/config.md`. Absent means use the defaults. Recognized keys:
 Read this file once at session start. Do not ask about any setting it already
 answers.
 
----
 
 ## Phase 0: Route
 
@@ -97,7 +91,6 @@ asked before studying begins is a chance for the user to close the terminal.
 Unit resolution: infer from content or path. If genuinely unclear, ask once and
 record the answer in `unit.md` so it is never asked again.
 
----
 
 ## Phase 1: Ingest, read once
 
@@ -155,7 +148,6 @@ Write `concepts.md` and `authority.md`, then record hashes. Never copy raw text
 wholesale into distilled files. Distilled files hold structure plus short
 verbatim quotes used as evidence.
 
----
 
 ## Phase 2: Authority model
 
@@ -211,7 +203,6 @@ instructor's recorded lectures without that instructor's consent. Also check
 your institution's policy on recording lectures before building a corpus from
 them.
 
----
 
 ## Phase 3: Concept graph and path
 
@@ -247,7 +238,6 @@ Topological sort on prereqs, then reorder by yield and deadline pressure. A
 stored path goes stale the moment mastery changes, and a stale plan is worse
 than none because it gets trusted.
 
----
 
 ## Phase 4: Strategy engine
 
@@ -274,7 +264,6 @@ no paragraph, no lecture about learning science.
 `shape` x `mastery` x `time_to_deadline` x stated energy. If the user says they
 are fried, drop to lower-load loops and shorter reps rather than pushing through.
 
----
 
 ## Phase 5: Drill
 
@@ -316,7 +305,6 @@ are fried, drop to lower-load loops and shorter reps rather than pushing through
 6. **Crash safety.** Write `mastery.json` incrementally during the session, not
    only at the end. Abandoned sessions are normal, not exceptional.
 
----
 
 ## Phase 6: Close
 
@@ -332,7 +320,6 @@ Next session: <one line>
 Nothing to copy. Nothing to paste back. A study system that asks you to
 hand-carry state between sessions is a study system you use once.
 
----
 
 ## Spacing
 
@@ -344,7 +331,6 @@ Deliberately simple and transparent, not SM-2:
 - Never schedule past a known deadline. Compress to fit instead.
 - No deadline: intervals run uncapped
 
----
 
 ## Cold start
 
@@ -359,7 +345,6 @@ material exists.
 5. When real material lands, PROVISIONAL entries are REPLACED, not merged, and
    the replacement is reported.
 
----
 
 ## Guardrails
 
@@ -373,7 +358,6 @@ material exists.
    discrepancy. Understanding first, exam framing noted.
 6. Never modify or delete anything in `raw/`.
 
----
 
 ## Optional: external tools
 
@@ -388,7 +372,6 @@ stall the pipeline, and a stalled pipeline gets abandoned.
 
 Print what to upload and what to ask. Do not drive the browser.
 
----
 
 ## Non-goals
 
@@ -397,3 +380,35 @@ Print what to upload and what to ask. Do not drive the browser.
 - No browser automation.
 - No database. Plain files.
 - No background jobs or nagging. It runs when invoked.
+
+---
+
+## Degraded mode (no file system)
+
+Everything above assumes you can read and write files across sessions. In a
+plain chat interface (a web chat with no persistent workspace, reached by
+uploading this file or a zip containing it) that assumption breaks. Run this
+mode instead, and say so up front in one line, so the person knows what they
+are trading away:
+
+- **No `raw/` folder, no ingest tracking.** Whatever material is pasted or
+  uploaded this turn is everything you get. Read it once, in this
+  conversation, and build the authority model and concept graph directly in
+  your reply instead of writing them to disk.
+- **No `mastery.json`.** You cannot track spaced-repetition intervals across
+  sessions. Keep a running tally in the conversation instead, and treat every
+  session as if reviewing from scratch, since you have no way to know what
+  happened last time unless the person tells you.
+- **No automatic close.** End the session with the same four-line recap block
+  from the Close phase, but say explicitly: "paste this back at the start of
+  next session, since I won't remember it." This is a real regression, it is
+  exactly the copy-paste handoff this skill was built to avoid, and it exists
+  here only because the platform has no file system. Do not pretend otherwise.
+- **Everything else still applies.** Confidence tiering, never leading with
+  the answer, push-vagueness, mechanism over vocabulary, the strategy library.
+  None of that depends on a file system.
+- **If the platform has a persistent-memory or project-knowledge feature**
+  (uploaded files that stay attached to a project across chats, not just this
+  one conversation), say so and suggest the person use it: upload this file
+  there once instead of re-uploading a zip every session. That is a real
+  partial fix for the memory gap above, and it costs nothing to mention.

@@ -1,8 +1,12 @@
 # study
 
-A [Claude Code](https://claude.com/claude-code) skill that turns your course
-material into adaptive drilling, built around **how your specific instructor
-teaches** rather than around what a textbook thinks is important.
+An AI study coach that turns your course material into adaptive drilling,
+built around **how your specific instructor teaches** rather than around what
+a textbook thinks is important. Works with [Claude Code](https://claude.com/claude-code),
+[Cursor](https://cursor.com), [Codex](https://openai.com/codex/),
+[OpenCode](https://opencode.ai), any other coding agent that can read a
+project file, and, in a reduced form, plain chat interfaces with no file
+system at all.
 
 Most study tools treat a course as a pile of facts. Your exam isn't written by
 a pile of facts. It's written by one person who emphasizes certain things,
@@ -52,17 +56,84 @@ against your typed sources first, logs every correction, and *drops* anything it
 can't resolve confidently. A missing concept is recoverable. An invented one
 isn't.
 
-## Install
+## How it's organized
 
-Requires [Claude Code](https://claude.com/claude-code).
+One file is the whole skill: [`study.md`](study.md). It's plain markdown,
+written as instructions for any AI agent that can read files, with no
+tool-specific syntax in it. Everything under `adapters/` is a thin file, a few
+lines each, whose only job is telling a specific tool when to load
+`study.md`. Install the adapter for whatever you use.
+
+```
+study.md                        the whole skill, tool-agnostic
+adapters/
+  claude-code/study/             self-contained, for a global install
+    SKILL.md
+    study.md                     (a copy, see note below)
+  cursor/study.mdc                project-scoped rule, points at study.md
+  agents-md/study-section.md      snippet for AGENTS.md (Codex, OpenCode, etc.)
+basic-chat/README.md            fallback for plain chat UIs, no file system
+```
+
+## Install: Claude Code
+
+Claude Code skills install globally and need to be self-contained, so this
+adapter carries its own copy of `study.md` alongside `SKILL.md`.
 
 ```bash
 git clone https://github.com/sa1emie/study-skill.git
 mkdir -p ~/.claude/skills
-cp -r study-skill/skills/study ~/.claude/skills/
+cp -r study-skill/adapters/claude-code/study ~/.claude/skills/
 ```
 
-Then start a Claude Code session and type `/study`.
+Start a Claude Code session and type `/study`, or just describe what you need
+("quiz me on this", "here are my slides") and it triggers automatically.
+
+## Install: Cursor
+
+Cursor rules are project-scoped, so this one just points back at `study.md`
+rather than duplicating it. Run this inside each project you want it in:
+
+```bash
+git clone https://github.com/sa1emie/study-skill.git /tmp/study-skill
+cp /tmp/study-skill/study.md .
+mkdir -p .cursor/rules
+cp /tmp/study-skill/adapters/cursor/study.mdc .cursor/rules/
+```
+
+Then ask Cursor to quiz you, drill a topic, or ingest material, in the same
+project.
+
+## Install: Codex, OpenCode, and other AGENTS.md tools
+
+A growing set of coding agents read a plain `AGENTS.md` at the project root
+for standing instructions. Same idea as the Cursor adapter: `study.md` lives
+in your project, and a short section in `AGENTS.md` tells the agent when to
+read it.
+
+```bash
+git clone https://github.com/sa1emie/study-skill.git /tmp/study-skill
+cp /tmp/study-skill/study.md .
+cat /tmp/study-skill/adapters/agents-md/study-section.md >> AGENTS.md
+```
+
+If you don't have an `AGENTS.md` yet, the command above creates one. If your
+tool uses a different standing-instructions file, paste the same section
+there instead, minus the HTML comment at the top.
+
+## Install: any other AI coding tool
+
+If your tool isn't listed above but can read a file when told to, you don't
+need an adapter. Copy `study.md` into your project and tell the agent to read
+it and follow it. That's the entire mechanism every adapter above is doing;
+the adapters just automate the "tell it to" part.
+
+## Install: plain chat (ChatGPT, Claude.ai, etc.), no coding agent
+
+No file-reading agent, no project folder. See
+[`basic-chat/README.md`](basic-chat/README.md) for the zip-and-upload method.
+It works, but it gives up persistence between sessions, which is most of what
+this project is for. Use one of the adapters above if you have any way to.
 
 ## Quickstart
 
@@ -71,10 +142,10 @@ mkdir -p ~/study/my-course/raw
 # drop slides, PDFs, transcripts, notes into ~/study/my-course/raw/
 ```
 
-In Claude Code:
+Then:
 
 ```
-/study here's the material for my cell bio midterm, exam is in 9 days
+here's the material for my cell bio midterm, exam is in 9 days
 ```
 
 It ingests, builds the model, and starts drilling. No menus, no setup wizard.
@@ -82,7 +153,7 @@ It ingests, builds the model, and starts drilling. No menus, no setup wizard.
 Later sessions:
 
 ```
-/study quiz me
+quiz me
 ```
 
 ## Configuration
@@ -150,6 +221,19 @@ The example in `examples/` is entirely fabricated for this reason.
 
 No scheduler, no calendar integration, no flashcard export, no browser
 automation, no database, no background jobs. Plain files, runs when invoked.
+
+## Maintaining this repo
+
+`study.md` at the repo root is the only copy anyone should edit. The Claude
+Code adapter carries a second copy for the reason explained above (a global
+install has to be self-contained); after editing the root file, resync it:
+
+```bash
+cp study.md adapters/claude-code/study/study.md
+```
+
+The Cursor and AGENTS.md adapters point at `study.md` rather than duplicating
+it, so they need no resync.
 
 ## Credits
 

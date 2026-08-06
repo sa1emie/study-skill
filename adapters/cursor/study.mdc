@@ -1,0 +1,9 @@
+---
+description: Adaptive study pipeline for quizzing, drilling, exam prep, and course-material ingestion. Apply whenever the user asks to study, quiz themselves, drill a topic, review lecture material, or prep for an exam.
+alwaysApply: false
+---
+
+Read `study.md` at the root of this project in full before responding to any
+study-related request, then follow it exactly for the rest of the
+conversation. That file is the complete instruction set; this rule only tells
+you when to load it.
