@@ -74,8 +74,11 @@ the adapters just automate the "tell it to" part.
 
 No file-reading agent, no project folder. See
 [`basic-chat/README.md`](basic-chat/README.md) for the zip-and-upload method.
-It works, but it gives up persistence between sessions, which is most of what
-this project is for. Use one of the adapters above if you have any way to.
+
+It gives up persistence between sessions, which is most of what Companion mode
+is for, so use an adapter above if you have any way to. One-shot mode is the
+exception: it barely degrades here, since the package it builds is the
+deliverable and nothing needs to survive to next session.
 
 ## Quickstart
 
@@ -90,7 +93,14 @@ Then:
 here's the material for my cell bio midterm, exam is in 9 days
 ```
 
-It ingests, builds the model, and starts drilling. No menus, no setup wizard.
+It ingests, tells you what it found, and asks once how you want to use it:
+
+- **Companion**, if you want it to drill you over the next nine days.
+- **One-shot**, if you want a study guide, flashcards, and practice questions
+  built now and then to be left alone.
+
+No menus, no setup wizard. Say what you want up front ("just make me a study
+guide") and it skips the question entirely.
 
 Later sessions:
 
@@ -98,11 +108,21 @@ Later sessions:
 quiz me
 ```
 
+or
+
+```
+turn this into an anki deck
+```
+
+Either works regardless of which mode you picked the first time. Switching
+never re-reads your material or loses your progress.
+
 ## Configuration
 
 Optional. Create `~/study/config.md`:
 
 ```markdown
+default_mode: one-shot
 tone: terse
 answer_length: short
 deep_dives_per_session: 2
@@ -112,6 +132,7 @@ grading: strict-with-override
 | Key | Default | Effect |
 |---|---|---|
 | `study_root` | `~/study/` | Where units live |
+| `default_mode` | none | `companion` or `one-shot`. Set it and it never asks which mode you want. |
 | `tone` | `neutral` | `neutral`, `terse` (no praise or padding), or `warm` |
 | `answer_length` | `short` | `short` (1 to 10 words) or `full` (paragraphs) |
 | `deep_dives_per_session` | `2` | Times per session it asks for a full explanation |

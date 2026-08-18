@@ -13,6 +13,7 @@ a corpus from recordings, check your institution's policy on recording lectures.
 
 | File | Shows |
 |---|---|
+| `unit.md` | The unit header: goal, deadline and where it came from, which mode the unit is in, and the manifest of any artifacts already built. |
 | `authority.md` | The confidence-tiering format. Every OBSERVED claim carries a quote; softer claims are downgraded to INFERRED, and the coverage table up top states how far the model can be trusted. |
 | `concepts.md` | Concept rows with shape, prereqs, and yield backed by evidence rather than assertion. |
 | `.ingest.json` | Source classification and the vocabulary-normalization audit trail, including tokens that were dropped rather than guessed. |

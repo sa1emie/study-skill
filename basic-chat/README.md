@@ -13,6 +13,20 @@ file system. You will be re-explaining your progress by hand, which is exactly
 the failure mode this project exists to avoid. Use an adapter above if you can.
 This is the fallback for when you genuinely can't.
 
+**Which mode to use here.** The two modes degrade very differently without a
+file system:
+
+- **One-shot works nearly as well.** It reads your material, builds the model,
+  and hands you a study guide, flashcards, and practice questions in the
+  conversation. You copy those out once and you own them. Nothing needs to
+  survive to next session, so nothing is lost. If you only have a chat window,
+  this is the mode to use.
+- **Companion is the one that suffers.** Its whole value is remembering what
+  you missed and scheduling it back. With no `mastery.json` that memory is
+  gone, and every session restarts blind unless you hand-carry a recap.
+
+Ask for One-shot explicitly in your first message and you skip the question.
+
 ## How to do it
 
 1. **Zip the instructions.** From this repo:
@@ -32,16 +46,21 @@ This is the fallback for when you genuinely can't.
    > acting as an adaptive study coach. Follow it exactly for the rest of
    > this conversation, including the "Degraded mode" section near the end,
    > since you don't have a file system here. If I attached course material
-   > in this zip too, that's what we're studying.
+   > in this zip too, that's what we're studying. Use One-shot mode.
 
-4. **Study normally.** It will ingest whatever you gave it, build the
-   instructor model and concept graph in its reply instead of on disk, and
-   drill you the same way the full pipeline does.
+   Drop the last sentence if you want it to drill you instead of building you
+   a package, or if you want it to ask.
 
-5. **At the end of the session**, it will give you a short recap block. Save
-   that yourself (copy it into a note) and paste it back at the start of your
-   next session if you want any continuity. This manual step is the one thing
-   the full pipeline exists to eliminate; here, it's the best available option.
+4. **It ingests and delivers.** In One-shot it builds the instructor model and
+   concept graph, then writes out your study guide, flashcards, and practice
+   questions in the conversation. In Companion it drills you the same way the
+   full pipeline does, just without saving anything.
+
+5. **Copy out what you want to keep.** One-shot artifacts are yours once
+   pasted into a doc. In Companion, it will give you a short recap block at
+   the end; save that and paste it back next session if you want continuity.
+   That manual step is the one thing the full pipeline exists to eliminate,
+   and here it is the best available option.
 
 ## If your platform supports persistent project files
 

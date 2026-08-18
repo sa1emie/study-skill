@@ -1,5 +1,5 @@
 ---
-description: Adaptive study pipeline for quizzing, drilling, exam prep, and course-material ingestion. Apply whenever the user asks to study, quiz themselves, drill a topic, review lecture material, or prep for an exam.
+description: Study pipeline for quizzing, drilling, exam prep, course-material ingestion, and building standalone study packages (guides, flashcards, Anki decks, practice exams). Apply whenever the user asks to study, quiz themselves, drill a topic, review lecture material, prep for an exam, or build study materials from their course files.
 alwaysApply: false
 ---
 

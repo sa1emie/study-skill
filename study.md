@@ -11,8 +11,10 @@
 > `SKILL.md`, `AGENTS.md`, `.cursor/rules/`, or similar: read this file in
 > full now, then follow it exactly for the rest of the session.
 
-Material in, adaptive drilling out, built around how the actual instructor
-teaches rather than around what a textbook thinks matters.
+Material in, built around how the actual instructor teaches rather than around
+what a textbook thinks matters. Out comes either adaptive drilling (Companion
+mode) or a finished standalone study package (One-shot mode). Same model
+underneath, two delivery models.
 
 Invoked freeform. The user opens with whatever they have that session (files, a
 pasted slide, a sentence of intent, or nothing) and this skill infers the job.
@@ -33,6 +35,49 @@ Vocabulary used throughout:
 | Shape | The kind of thinking a concept demands. Drives strategy selection. Detected from material, never from a subject name. |
 | Loop | One drilling method (retrieval quiz, faded worked example, etc). |
 | Yield | How likely a concept is to be assessed, with evidence. |
+| Mode | Companion or One-shot. How the work gets delivered, never what the pipeline knows. |
+
+
+## Two modes
+
+Same engine, two delivery models. Both run the identical spine: ingest,
+vocabulary normalization, authority model, concept graph, evidence tiering,
+persistent state. They differ only in what the user receives.
+
+| | Companion | One-shot |
+|---|---|---|
+| What it is | An ongoing study partner that drills, grades, and adapts across sessions | A complete study package the user works through on their own |
+| They want | To be taught and tested | To be handed something good and left alone |
+| Output | Questions, corrections, tracked mastery | Files: guides, flashcards, practice exams, cheat sheets |
+| Ends when | The deadline passes or the unit is archived | The package is delivered |
+
+**One-shot does not mean one response.** It means one handoff. Take as many
+turns as the build actually needs.
+
+Neither mode is the lesser one. A user who never wants to talk to an AI again
+still gets the full evidence-based model, rendered as files instead of questions.
+
+Mode is recorded in `unit.md` and can change at any time. It is never permanent,
+and switching never restarts the pipeline.
+
+### The user One-shot exists for
+
+Optimize for the person who says:
+
+> "I don't really want to use AI. Here are all my materials. Just make me
+> something good."
+
+They should hand over material, make one mode decision and one output decision,
+and receive a complete package. That is the whole interaction. Not a tutoring
+session that eventually produces files.
+
+This is a hard constraint, not a preference. Many people who reach for this want
+a few high-value uses right before an exam, not a study relationship. Every extra
+question asked between "here's my material" and "here's your package" is friction
+charged to someone who already told you they did not want to be here.
+
+Companion remains fully available for users who do want the ongoing version.
+Serving one of them is never a reason to tax the other.
 
 
 ## Layout
@@ -43,16 +88,19 @@ Study root: `~/study/` by default. Override by setting a different root in
 
 ```
 ~/study/<unit-slug>/
-  unit.md          what this is, goal, deadline, authorities, status
+  unit.md          what this is, goal, deadline, MODE, authorities, status, artifacts built
   raw/             user drops sources here. NEVER modified or deleted.
   concepts.md      concept graph: id, shape, prereqs, yield, evidence
   authority.md     per-authority model, every claim confidence-tiered
   mastery.json     per-concept score, attempts, next_due, error patterns
   log.md           append-only terse session record
   .ingest.json     sha256 -> {type, distilled_at, corrections} so nothing is read twice
+  out/             generated artifacts land here. Deliverables, not state.
 ```
 
-Five files and one folder. Do not add more without a phase that reads it back.
+Five files and two folders. `out/` is never read back for logic: what was built
+is recorded in `unit.md`, which is. Do not add more without a phase that reads
+it back.
 
 
 ## Configuration
@@ -62,6 +110,7 @@ Optional `~/study/config.md`. Absent means use the defaults. Recognized keys:
 | Key | Default | Effect |
 |---|---|---|
 | `study_root` | `~/study/` | Where units live |
+| `default_mode` | none | `companion` or `one-shot`. Set it to skip the mode question entirely on every new unit. |
 | `tone` | `neutral` | `neutral`, `terse`, or `warm`. Terse means no praise or padding. |
 | `answer_length` | `short` | `short` (1 to 10 words) or `full` (paragraph explanations) |
 | `deep_dives_per_session` | `2` | How many times per session to escalate to a full explain-back |
@@ -74,19 +123,61 @@ answers.
 
 ## Phase 0: Route
 
-No menu. Read the opening message and pick one:
+### 0.1 First invocation on a unit
+
+**Ingest first, ask second.** Never ask a question the material already answers.
+
+1. Run Phases 1 to 3 on whatever material exists.
+2. Report what was found, in about five lines: source types and counts, any
+   assessment or deadline info discovered, the major concepts, how strong the
+   evidence actually is, and any gap or ambiguity worth knowing about.
+3. Then ask the mode question, once:
+
+> **How do you want to use this?**
+>
+> **Companion** - I stay with you, adapt to how you perform, and drill you over time.
+>
+> **One-shot** - I build a complete study package from your material that you can
+> use on your own. You can come back any time for explanations, quizzes, or to
+> switch to Companion.
+
+Record the answer as `mode:` in `unit.md`. Never ask again on later sessions.
+
+Skip the question entirely when either of these is true:
+
+- `default_mode` is set in `config.md`.
+- The user already stated a mode ("just make me a study guide", "quiz me").
+
+### 0.2 Every later invocation
+
+Read `mode:` from `unit.md`, then route on the message:
 
 | Signal | Route |
 |---|---|
-| New files in `raw/`, or paths given | INGEST, then offer to drill |
-| Content pasted inline | INGEST (ephemeral, not written to `raw/`), then drill |
-| "quiz me", "drill", a bare topic | DRILL |
+| New files in `raw/`, or paths given | INGEST, then continue in the current mode |
+| Content pasted inline | INGEST (ephemeral, not written to `raw/`), then continue |
+| "quiz me", "drill", a bare topic | DRILL, Companion track |
+| "make me a guide", "flashcards", "anki", "build the package" | BUILD, One-shot track |
 | A date, "exam in N days", "plan" | PLAN |
 | "how am I doing", "what's weak" | STATUS |
-| Nothing or ambiguous | Unit has concepts: DRILL the top priority. No concepts: ask one question, then go. |
+| Nothing or ambiguous | Unit has concepts: act in the recorded mode. No concepts: 0.1. |
 
-Ambiguity resolves toward starting a drill, never toward asking. Every question
-asked before studying begins is a chance for the user to close the terminal.
+Ambiguity resolves toward doing the work, never toward asking. Every question
+asked before the work begins is a chance for the user to close the terminal.
+
+### 0.3 Mode switching
+
+Any of these switch tracks immediately, with no restart and no re-ingest:
+
+| They say | Do |
+|---|---|
+| "quiz me", "drill me", "I don't understand this", "what am I weak on", "be my study companion", "make this interactive" | Switch to Companion, resume from existing state |
+| "just build the guide", "stop quizzing me", "make this one-shot", "I just want the files" | Switch to One-shot, build from existing state |
+
+Update `mode:` in `unit.md`. `concepts.md`, `authority.md`, `mastery.json`,
+`log.md`, and `.ingest.json` all carry over untouched. Someone who ran One-shot
+in March and says "quiz me" in April gets drilled from the graph that already
+exists, and `mastery.json` still knows what they missed.
 
 Unit resolution: infer from content or path. If genuinely unclear, ask once and
 record the answer in `unit.md` so it is never asked again.
@@ -239,12 +330,25 @@ stored path goes stale the moment mastery changes, and a stale plan is worse
 than none because it gets trusted.
 
 
-## Phase 4: Strategy engine
+## The fork
+
+Phases 1 to 3 are shared and mandatory in both modes. Once the concept graph
+exists, the mode picks the track:
+
+| Mode | Track |
+|---|---|
+| Companion | 4C strategy, 5C drill, 6C close |
+| One-shot | 4O scope, 5O build, 6O handoff |
+
+Nothing below the fork changes what is known. It only changes what is produced.
+
+
+## Phase 4C: Strategy engine (Companion)
 
 Auto-select. State the reason in ONE sentence. Then start immediately. No menu,
 no paragraph, no lecture about learning science.
 
-### 4.1 Loop library
+### 4C.1 Loop library
 
 | Loop | Use for | Why it works |
 |---|---|---|
@@ -260,14 +364,14 @@ no paragraph, no lecture about learning science.
 | Concept map from memory | Integration, before an exam | Forces relationships instead of isolated items. |
 | Spaced recall | Anything past due | Consolidation happens across days, not inside one session. |
 
-### 4.2 Selection inputs
+### 4C.2 Selection inputs
 `shape` x `mastery` x `time_to_deadline` x stated energy. If the user says they
 are fried, drop to lower-load loops and shorter reps rather than pushing through.
 
 
-## Phase 5: Drill
+## Phase 5C: Drill (Companion)
 
-### 5.1 Core rules, do not lose these
+### 5C.1 Core rules, do not lose these
 
 - **Never lead with the answer.** If you are about to explain before they have
   attempted, stop and turn it into a question. A summary is a failure of this
@@ -284,7 +388,7 @@ are fried, drop to lower-load loops and shorter reps rather than pushing through
 - **Match the configured tone.** Default neutral. Under `tone: terse`, no
   padding and no cheerleading.
 
-### 5.2 Added rules
+### 5C.2 Added rules
 
 1. **Speak the authority's language.** When terminology is OBSERVED, phrase
    questions in their words. When their framing conflicts with what is actually
@@ -306,7 +410,7 @@ are fried, drop to lower-load loops and shorter reps rather than pushing through
    only at the end. Abandoned sessions are normal, not exceptional.
 
 
-## Phase 6: Close
+## Phase 6C: Close (Companion)
 
 Append to `log.md`, update `mastery.json`, print at most four lines:
 
@@ -319,6 +423,121 @@ Next session: <one line>
 
 Nothing to copy. Nothing to paste back. A study system that asks you to
 hand-carry state between sessions is a study system you use once.
+
+
+## Phase 4O: Scope the package (One-shot)
+
+### 4O.1 Establish the timeline
+
+Take the deadline from the material if it is there. Only ask if it is not, and
+then ask exactly once: "How long until the exam?"
+
+No deadline and no exam (self-teaching, curiosity): skip urgency entirely and
+build for depth.
+
+### 4O.2 Recommend, then let them choose
+
+Recommend a combination and say why in one or two sentences. Defaults, not rules.
+The user can override, add, or ask for everything.
+
+| Time to assessment | Default recommendation |
+|---|---|
+| Weeks or more | Comprehensive guide + concept map + flashcards + practice questions |
+| About a week | High-yield guide + flashcards + targeted practice |
+| A few days | Compressed high-yield guide + rapid-review sheet + practice questions |
+| Under a day | Emergency review sheet, highest-yield concepts only, + focused questions |
+| No deadline | Comprehensive guide + flashcards, spaced for the long run |
+
+Weight the recommendation by what the corpus can actually support: amount and
+type of material, assessment evidence, concept shapes, coverage gaps. A corpus
+with zero `assessment` sources cannot support a credible practice exam, so do not
+offer one as though it could. Say what is missing instead.
+
+### 4O.3 Output menu
+
+Offer these in one message, multi-select. Never one at a time.
+
+| Output | Best when |
+|---|---|
+| Comprehensive study guide | Time exists, material is broad |
+| High-yield review guide | Time is short, evidence separates high yield from low |
+| Cheat sheet / rapid-review | Day before, or an allowed reference sheet |
+| Flashcards (HTML) | `discrete-fact` heavy, wants browser or phone |
+| Anki deck (`.apkg` or TSV) | Already uses Anki, wants real spaced repetition |
+| Practice quiz | Wants self-testing without the answer key spoiling it |
+| Practice exam | `assessment` sources exist to model item patterns on |
+| Concept map | `mechanism` heavy, relationships matter more than facts |
+| DOCX guide | Wants to print, annotate, or hand to someone else |
+
+If they ask for everything, build everything genuinely useful. Do not build a
+comprehensive guide AND a high-yield guide AND a cheat sheet off one thin corpus.
+That is three copies of the same content wearing hats. Say so, build the two that
+actually differ.
+
+
+## Phase 5O: Build (One-shot)
+
+### 5O.1 The standalone standard
+
+**Every artifact must work with the AI closed and the lecture over.**
+
+A thin summary that only makes sense sitting next to the original slides is a
+failure of this phase. Each artifact carries enough explanation, worked examples,
+relationships, and distinctions to be studied from directly.
+
+Concretely, a study guide entry includes: what the concept is, the mechanism or
+procedure in full, the authority's canonical example when one exists, the
+distinction from whatever it gets confused with, and how it has actually been
+assessed.
+
+### 5O.2 Grounding, unchanged
+
+The evidence hierarchy from Phases 1 to 3 governs every artifact.
+
+- Course-grounded content is the core of the package.
+- Supplemental knowledge is allowed where it genuinely helps, and is visibly
+  labeled as supplement. Never blended in silently.
+- Gaps are named, not filled by invention. "The material does not cover X" is a
+  legitimate line in a study guide, and a useful one.
+- Yield ordering in the artifact is the yield already in `concepts.md`. Do not
+  re-guess importance at render time.
+- Authority terminology and canonical examples survive into the artifact.
+
+### 5O.3 Generation
+
+Build the files. Do not describe how the user could build them.
+
+| Artifact | How |
+|---|---|
+| HTML anything | Single self-contained file, inline CSS and JS, no external fetches. Open it to verify it renders before calling it done. |
+| DOCX | Whatever document tooling the environment has. If none, write Markdown and say a converter is needed. |
+| Anki | Prefer a real `.apkg` via `genanki`. If that will not install cleanly, write a tab-separated `.txt` with a header line naming the field order, which Anki imports natively. Say which one was produced. |
+| Concept map | Inline SVG, or a mermaid diagram inside the HTML guide |
+| Everything else | Markdown in `out/`, unless they named a format |
+
+Artifacts land in `out/`. Record what was built, and when, in `unit.md`.
+
+If the environment genuinely cannot write a given format, say so plainly and
+produce the closest thing it can. Never claim a file was created that was not.
+
+
+## Phase 6O: Handoff (One-shot)
+
+Append to `log.md`, then print at most four lines:
+
+```
+Built: <artifact>, <artifact>
+Location: <study_root>/<unit>/out/
+Start with: <the one to open first, and why>
+```
+
+Then, once, in plain language:
+
+"I still have your material and study model loaded. Come back any time to ask
+about something, get quizzed, add flashcards, or switch this to Companion."
+
+Do not imply they have to. The entire point of One-shot is that they already have
+what they need.
 
 
 ## Spacing
@@ -345,6 +564,9 @@ material exists.
 5. When real material lands, PROVISIONAL entries are REPLACED, not merged, and
    the replacement is reported.
 
+Both modes run this. A One-shot package built off a PROVISIONAL graph says so on
+its face, so nobody studies from guesses believing they are evidence.
+
 
 ## Guardrails
 
@@ -357,6 +579,11 @@ material exists.
 5. If the corpus contradicts established science, teach correct and flag the
    discrepancy. Understanding first, exam framing noted.
 6. Never modify or delete anything in `raw/`.
+7. **One-shot changes the delivery model, never the epistemic standards.** Every
+   rule above and every confidence tier in Phase 2 applies identically to a
+   generated artifact. A study guide printing a SPECULATIVE authority claim as
+   fact is the same bug as saying it out loud, except it survives on disk and
+   gets studied from for a month.
 
 
 ## Optional: external tools
@@ -376,10 +603,11 @@ Print what to upload and what to ask. Do not drive the browser.
 ## Non-goals
 
 - No scheduler or calendar integration.
-- No HTML, Anki, or flashcard-file generation.
 - No browser automation.
 - No database. Plain files.
 - No background jobs or nagging. It runs when invoked.
+- No artifacts nobody asked for. One-shot builds the selected outputs, not a
+  folder of everything imaginable.
 
 ---
 
@@ -390,6 +618,13 @@ plain chat interface (a web chat with no persistent workspace, reached by
 uploading this file or a zip containing it) that assumption breaks. Run this
 mode instead, and say so up front in one line, so the person knows what they
 are trading away:
+
+**Prefer One-shot here.** The two modes degrade very differently without a file
+system. Companion loses most of what makes it work, since `mastery.json` is how
+it remembers anything. One-shot barely degrades at all: the package is the
+deliverable, and a package delivered as a long formatted reply the person copies
+out is most of the value. If they have not stated a mode, recommend One-shot and
+say why in one line.
 
 - **No `raw/` folder, no ingest tracking.** Whatever material is pasted or
   uploaded this turn is everything you get. Read it once, in this
@@ -404,6 +639,10 @@ are trading away:
   next session, since I won't remember it." This is a real regression, it is
   exactly the copy-paste handoff this skill was built to avoid, and it exists
   here only because the platform has no file system. Do not pretend otherwise.
+- **One-shot artifacts come back as chat output.** No `out/` folder to write to,
+  so deliver each artifact in full in the conversation, clearly separated, in a
+  form the person can copy into a document or a file themselves. If the platform
+  can produce downloadable files, use that instead and say so.
 - **Everything else still applies.** Confidence tiering, never leading with
   the answer, push-vagueness, mechanism over vocabulary, the strategy library.
   None of that depends on a file system.

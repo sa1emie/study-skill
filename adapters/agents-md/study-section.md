@@ -10,5 +10,7 @@ section there instead.
 ## Study pipeline
 
 When the user asks to study, quiz themselves, drill a topic, review lecture
-material, or prep for an exam, read `study.md` at the root of this project in
-full before responding, then follow it exactly for the rest of the session.
+material, prep for an exam, or build study materials from their course files
+(a study guide, flashcards, an Anki deck, a practice exam, a cheat sheet),
+read `study.md` at the root of this project in full before responding, then
+follow it exactly for the rest of the session.
