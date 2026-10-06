@@ -1,0 +1,59 @@
+{
+ "title": "Lateral inhibition: why edges pop",
+ "beats": [
+  {
+   "id": "hook",
+   "say": "Look at the white crossroads in this grid. Do you see faint gray dots? They are not there. Your retina makes them, and the reason is on your exam."
+  },
+  {
+   "id": "define",
+   "say": "The reason is lateral inhibition. When one neuron is active, it turns down the activity of its neighbors. In the retina, horizontal cells do this. They inhibit the bipolar cells next door."
+  },
+  {
+   "id": "input",
+   "say": "Let's run the numbers. Here is an edge. Light hits the left receptors hard, ten units each. The right side is dim, only two units each."
+  },
+  {
+   "id": "rule",
+   "say": "Now every cell gets shushed by its two neighbors. It loses one tenth of whatever its neighbors receive."
+  },
+  {
+   "id": "result",
+   "say": "Cells deep in the bright side lose two, so they send eight. But the bright cell at the edge has one dim neighbor. It loses less, so it sends eight point eight. On the dark side, the edge cell has a bright neighbor, so it gets pushed down to point eight, lower than the dark cells behind it."
+  },
+  {
+   "id": "edge",
+   "say": "So the bright side gets brighter right at the edge, and the dark side gets darker. The border pops out. That is what lateral inhibition is for: it sharpens contrast at the borders of objects."
+  },
+  {
+   "id": "grid",
+   "say": "Back to the grid. A white crossroad has white on all four sides, so it gets the most inhibition, and it looks a little gray. A white street between two black squares gets less, so it looks whiter."
+  },
+  {
+   "id": "cue",
+   "say": "On the exam: if a question says sharpens borders or enhances contrast, the answer is lateral inhibition. And the cells that do it are horizontal cells."
+  }
+ ],
+ "questions": [
+  {
+   "q": "Define lateral inhibition in one sentence.",
+   "a": "Activity in one neuron reduces the activity of its neighbors (slide 24)."
+  },
+  {
+   "q": "Which retinal cells produce it, and which cells do they inhibit?",
+   "a": "Horizontal cells, inhibiting bipolar cells (slide 22)."
+  },
+  {
+   "q": "In the video's numbers, why does the bright cell at the edge send 8.8 while the deep bright cells send 8?",
+   "a": "It has one dim neighbor, so it loses 0.1 x (10 + 2) = 1.2 instead of 0.1 x (10 + 10) = 2."
+  },
+  {
+   "q": "What does lateral inhibition do for perception?",
+   "a": "Sharpens contrast at the borders of objects, so edges stand out."
+  },
+  {
+   "q": "Why do the white crossroads in the Hermann grid look gray?",
+   "a": "A crossroad has white on four sides, so it gets more inhibition than a street with white on two sides."
+  }
+ ]
+}

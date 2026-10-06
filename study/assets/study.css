@@ -1,0 +1,118 @@
+/* study.css: the design system for every HTML artifact the study skill builds.
+   Light and dark themes, one readable column, a fixed set of study components.
+   Edit tokens here, not per page. See references/design.md. */
+:root {
+  --bg: #ffffff; --surface: #f5f2ef; --surface-2: #ebe6e1; --ink: #1f1a17; --muted: #6b5f55;
+  --line: #e4ded8; --accent: #c2410c; --accent-ink: #ffffff; --blue: #1e4e79;
+  --good: #2f6f2a; --bad: #b42318; --warn: #8a5a00;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 8px; --col: 46rem; --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1714; --surface: #26201c; --surface-2: #322a25; --ink: #f3ece4; --muted: #a89a8c;
+    --line: #3a312b; --accent: #e8833a; --accent-ink: #1c1714; --blue: #8db8e0;
+    --good: #93c47d; --bad: #e88080; --warn: #e0b050;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1714; --surface: #26201c; --surface-2: #322a25; --ink: #f3ece4; --muted: #a89a8c;
+  --line: #3a312b; --accent: #e8833a; --accent-ink: #1c1714; --blue: #8db8e0;
+  --good: #93c47d; --bad: #e88080; --warn: #e0b050;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--font); }
+main { max-width: var(--col); margin: 0 auto; padding: 48px 16px 96px; }
+main.wide { max-width: var(--wide); }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .4rem; letter-spacing: -.01em; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+p, ul, ol { margin: 0 0 1rem; }
+li { margin: .25rem 0; }
+a { color: var(--blue); text-underline-offset: 2px; }
+strong { font-weight: 700; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--surface); padding: .1em .35em; border-radius: 4px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+img, svg, video { max-width: 100%; height: auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Page header: title, one meta line, optional theme toggle */
+.page-head { margin-bottom: 2rem; }
+.page-head .meta { color: var(--muted); margin: 0; }
+.theme-toggle { float: right; font: inherit; font-size: .85rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: .3rem .6rem; cursor: pointer; }
+
+/* Contents list */
+.toc { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.25rem; margin: 0 0 2rem; }
+.toc ol { margin: 0; padding-left: 1.25rem; columns: 2; column-gap: 2rem; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+
+/* Yield tag next to a heading: square corners, never a pill */
+.tag { display: inline-block; vertical-align: middle; font-size: .72rem; font-weight: 700; line-height: 1; padding: .3rem .45rem; border-radius: 4px; border: 1px solid currentColor; margin-left: .5rem; }
+.tag.high { color: var(--accent); } .tag.medium { color: var(--blue); } .tag.low { color: var(--muted); }
+
+/* Plain-language box: first thing in a section at register plain */
+.plain { background: var(--surface); border-left: 4px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; padding: 1rem 1.25rem; margin: 0 0 1.25rem; }
+.plain > :last-child { margin-bottom: 0; }
+
+/* Callouts */
+.note, .warn { border-radius: var(--radius); padding: .85rem 1.1rem; margin: 0 0 1.25rem; border: 1px solid var(--line); }
+.note::before, .warn::before { font-weight: 700; margin-right: .4rem; }
+.note::before { content: "Note."; color: var(--blue); }
+.warn::before { content: "Watch out."; color: var(--warn); }
+.supplement { color: var(--muted); font-size: .92rem; }
+.supplement::before { content: "Supplement, not in the course material: "; font-weight: 700; }
+
+/* Tables, including the cue table (what the question looks like -> answer) */
+table { width: 100%; border-collapse: collapse; margin: 0 0 1.25rem; font-size: .95rem; }
+th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+table.cues td:last-child { font-weight: 700; color: var(--accent); }
+.table-wrap { overflow-x: auto; }
+
+/* Reveal: collapsed depth ("why it works") and hidden answers */
+details { background: var(--surface); border-radius: var(--radius); padding: .7rem 1rem; margin: 0 0 .6rem; }
+details > summary { cursor: pointer; font-weight: 600; list-style-position: outside; }
+details[open] > summary { margin-bottom: .5rem; color: var(--accent); }
+details > :last-child { margin-bottom: 0; }
+
+/* Quiz: pre-test, post-test, practice. Self-scored. */
+.quiz { border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin: 0 0 1.5rem; }
+.quiz h3 { margin-top: 0; }
+.quiz ol { padding-left: 1.4rem; }
+.quiz li { margin: 0 0 .9rem; }
+.quiz .a { display: none; margin-top: .35rem; padding: .45rem .7rem; background: var(--surface); border-radius: 6px; }
+.quiz.revealed .a { display: block; }
+.quiz .got { margin-left: .5rem; font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.quiz .bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.quiz .score { font-weight: 700; color: var(--accent); }
+.btn { font: inherit; font-weight: 600; font-size: .92rem; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--radius); padding: .5rem .95rem; cursor: pointer; }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
+
+/* Flashcards: click or Space to flip */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .9rem; margin: 0 0 1.5rem; }
+.card { position: relative; min-height: 8.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; cursor: pointer; }
+.card .back { display: none; }
+.card.flipped .front { display: none; }
+.card.flipped .back { display: block; }
+.card.flipped { border-color: var(--accent); }
+.card::after { content: "click to flip"; position: absolute; right: .75rem; bottom: .5rem; font-size: .72rem; color: var(--muted); }
+
+/* Figures: diagrams, video, simulations */
+figure { margin: 0 0 1.5rem; }
+figure img, figure video, figure svg { display: block; width: 100%; border-radius: var(--radius); border: 1px solid var(--line); }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .45rem; }
+
+/* Two columns that collapse on narrow screens */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } .toc ol { columns: 1; } h1 { font-size: 1.6rem; } }
+
+@media print {
+  :root { --bg: #fff; --surface: #f4f4f4; --ink: #000; --muted: #444; --line: #ccc; }
+  .theme-toggle, .btn { display: none; }
+  .quiz .a, details > * { display: block !important; }
+  h2 { break-after: avoid; } .quiz, figure, table { break-inside: avoid; }
+}

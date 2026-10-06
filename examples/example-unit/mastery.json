@@ -1,0 +1,13 @@
+{
+  "deadline": "2026-10-17",
+  "concepts": {
+    "membrane-structure": {"score": 0.82, "attempts": 3, "interval": 6.25, "last": "2026-10-03", "next_due": "2026-10-09", "errors": []},
+    "passive-transport": {"score": 0.65, "attempts": 2, "interval": 2.5, "last": "2026-10-03", "next_due": "2026-10-06", "errors": ["called facilitated diffusion active"]},
+    "active-transport": {"score": 0.3, "attempts": 2, "interval": 1, "last": "2026-10-03", "next_due": "2026-10-04", "errors": ["mixed up primary and secondary"]},
+    "endocytosis-types": {"score": 0.3, "attempts": 1, "interval": 1, "last": "2026-10-03", "next_due": "2026-10-04", "errors": ["wrote cell drinking for receptor-mediated"]}
+  },
+  "tests": [
+    {"date": "2026-10-03", "kind": "pre", "label": "membranes", "correct": 2, "total": 5},
+    {"date": "2026-10-03", "kind": "post", "label": "membranes", "correct": 4, "total": 5}
+  ]
+}

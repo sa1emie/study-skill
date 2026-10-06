@@ -1,0 +1,237 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vision: Study Guide</title><style>
+/* study.css: the design system for every HTML artifact the study skill builds.
+   Light and dark themes, one readable column, a fixed set of study components.
+   Edit tokens here, not per page. See references/design.md. */
+:root {
+  --bg: #ffffff; --surface: #f5f2ef; --surface-2: #ebe6e1; --ink: #1f1a17; --muted: #6b5f55;
+  --line: #e4ded8; --accent: #c2410c; --accent-ink: #ffffff; --blue: #1e4e79;
+  --good: #2f6f2a; --bad: #b42318; --warn: #8a5a00;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 8px; --col: 46rem; --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1714; --surface: #26201c; --surface-2: #322a25; --ink: #f3ece4; --muted: #a89a8c;
+    --line: #3a312b; --accent: #e8833a; --accent-ink: #1c1714; --blue: #8db8e0;
+    --good: #93c47d; --bad: #e88080; --warn: #e0b050;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1714; --surface: #26201c; --surface-2: #322a25; --ink: #f3ece4; --muted: #a89a8c;
+  --line: #3a312b; --accent: #e8833a; --accent-ink: #1c1714; --blue: #8db8e0;
+  --good: #93c47d; --bad: #e88080; --warn: #e0b050;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 var(--font); }
+main { max-width: var(--col); margin: 0 auto; padding: 48px 16px 96px; }
+main.wide { max-width: var(--wide); }
+h1 { font-size: 2rem; line-height: 1.2; margin: 0 0 .4rem; letter-spacing: -.01em; }
+h2 { font-size: 1.4rem; line-height: 1.3; margin: 3rem 0 .75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+h3 { font-size: 1.1rem; margin: 1.75rem 0 .5rem; }
+p, ul, ol { margin: 0 0 1rem; }
+li { margin: .25rem 0; }
+a { color: var(--blue); text-underline-offset: 2px; }
+strong { font-weight: 700; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--surface); padding: .1em .35em; border-radius: 4px; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+img, svg, video { max-width: 100%; height: auto; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Page header: title, one meta line, optional theme toggle */
+.page-head { margin-bottom: 2rem; }
+.page-head .meta { color: var(--muted); margin: 0; }
+.theme-toggle { float: right; font: inherit; font-size: .85rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: .3rem .6rem; cursor: pointer; }
+
+/* Contents list */
+.toc { background: var(--surface); border-radius: var(--radius); padding: 1rem 1.25rem; margin: 0 0 2rem; }
+.toc ol { margin: 0; padding-left: 1.25rem; columns: 2; column-gap: 2rem; }
+.toc a { color: var(--ink); text-decoration: none; }
+.toc a:hover { color: var(--accent); }
+
+/* Yield tag next to a heading: square corners, never a pill */
+.tag { display: inline-block; vertical-align: middle; font-size: .72rem; font-weight: 700; line-height: 1; padding: .3rem .45rem; border-radius: 4px; border: 1px solid currentColor; margin-left: .5rem; }
+.tag.high { color: var(--accent); } .tag.medium { color: var(--blue); } .tag.low { color: var(--muted); }
+
+/* Plain-language box: first thing in a section at register plain */
+.plain { background: var(--surface); border-left: 4px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; padding: 1rem 1.25rem; margin: 0 0 1.25rem; }
+.plain > :last-child { margin-bottom: 0; }
+
+/* Callouts */
+.note, .warn { border-radius: var(--radius); padding: .85rem 1.1rem; margin: 0 0 1.25rem; border: 1px solid var(--line); }
+.note::before, .warn::before { font-weight: 700; margin-right: .4rem; }
+.note::before { content: "Note."; color: var(--blue); }
+.warn::before { content: "Watch out."; color: var(--warn); }
+.supplement { color: var(--muted); font-size: .92rem; }
+.supplement::before { content: "Supplement, not in the course material: "; font-weight: 700; }
+
+/* Tables, including the cue table (what the question looks like -> answer) */
+table { width: 100%; border-collapse: collapse; margin: 0 0 1.25rem; font-size: .95rem; }
+th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+table.cues td:last-child { font-weight: 700; color: var(--accent); }
+.table-wrap { overflow-x: auto; }
+
+/* Reveal: collapsed depth ("why it works") and hidden answers */
+details { background: var(--surface); border-radius: var(--radius); padding: .7rem 1rem; margin: 0 0 .6rem; }
+details > summary { cursor: pointer; font-weight: 600; list-style-position: outside; }
+details[open] > summary { margin-bottom: .5rem; color: var(--accent); }
+details > :last-child { margin-bottom: 0; }
+
+/* Quiz: pre-test, post-test, practice. Self-scored. */
+.quiz { border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.25rem; margin: 0 0 1.5rem; }
+.quiz h3 { margin-top: 0; }
+.quiz ol { padding-left: 1.4rem; }
+.quiz li { margin: 0 0 .9rem; }
+.quiz .a { display: none; margin-top: .35rem; padding: .45rem .7rem; background: var(--surface); border-radius: 6px; }
+.quiz.revealed .a { display: block; }
+.quiz .got { margin-left: .5rem; font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.quiz .bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.quiz .score { font-weight: 700; color: var(--accent); }
+.btn { font: inherit; font-weight: 600; font-size: .92rem; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--radius); padding: .5rem .95rem; cursor: pointer; }
+.btn.ghost { background: none; color: var(--ink); border: 1px solid var(--line); }
+
+/* Flashcards: click or Space to flip */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .9rem; margin: 0 0 1.5rem; }
+.card { position: relative; min-height: 8.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; cursor: pointer; }
+.card .back { display: none; }
+.card.flipped .front { display: none; }
+.card.flipped .back { display: block; }
+.card.flipped { border-color: var(--accent); }
+.card::after { content: "click to flip"; position: absolute; right: .75rem; bottom: .5rem; font-size: .72rem; color: var(--muted); }
+
+/* Figures: diagrams, video, simulations */
+figure { margin: 0 0 1.5rem; }
+figure img, figure video, figure svg { display: block; width: 100%; border-radius: var(--radius); border: 1px solid var(--line); }
+figcaption { color: var(--muted); font-size: .88rem; margin-top: .45rem; }
+
+/* Two columns that collapse on narrow screens */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } .toc ol { columns: 1; } h1 { font-size: 1.6rem; } }
+
+@media print {
+  :root { --bg: #fff; --surface: #f4f4f4; --ink: #000; --muted: #444; --line: #ccc; }
+  .theme-toggle, .btn { display: none; }
+  .quiz .a, details > * { display: block !important; }
+  h2 { break-after: avoid; } .quiz, figure, table { break-inside: avoid; }
+}
+</style></head><body><main>
+<header class="page-head"><button class="theme-toggle" type="button">Light / dark</button>
+<h1>Chapter 5, Vision: study guide</h1>
+<p class="meta">Built by the study skill from a 51-slide deck, the instructor's exam review sheet and the chapter study questions. Register: plain. Exam in 1 day.</p></header>
+<p class="note">This is a demo of a One-shot package. Explanations and questions are written fresh from the material, not copied from it.</p>
+<section class="quiz" id="pre-test"><h3>Pre-test: 5 questions, before you read</h3><ol><li>Which cells' axons form the optic nerve?<div class="a">Ganglion cells.</div></li><li>Rods or cones: which handle dim light?<div class="a">Rods, mostly in the periphery.</div></li><li>What does the opponent-process theory explain that the trichromatic theory does not?<div class="a">Negative afterimages (red vs green, yellow vs blue).</div></li><li>Where do half the fibers from each eye cross?<div class="a">The optic chiasm.</div></li><li>Damage to which stream leaves you able to see an object but not name it?<div class="a">The ventral (temporal, "what") stream: visual agnosia.</div></li></ol></section>
+<nav class="toc" aria-label="Contents"><ol><li><a href="#s1">Seeing happens in the brain</a></li><li><a href="#s2">The path through the eye and retina</a></li><li><a href="#s3">Rods vs cones</a></li><li><a href="#s4">How you see color: three theories</a></li><li><a href="#s5">Lateral inhibition: the edge sharpener</a></li><li><a href="#s6">From the eye to the cortex</a></li><li><a href="#s7">The "what" and "how" streams</a></li><li><a href="#s8">Motion, and why you can't see your own eyes move</a></li><li><a href="#s9">Development: depth, strabismus, astigmatism</a></li></ol></nav>
+<section id="s1"><h2>Seeing happens in the brain <span class="tag low">low yield</span></h2>
+<div class="plain"><p>Your eyes don't actually see anything. They're more like a doorbell camera that sends a signal inside. The brain decides what the signal means. The rule for that is the <b>law of specific nerve energies</b>: each nerve always carries the same <i>kind</i> of message. A nerve from your eye always says "light", no matter what pokes it. That's why rubbing your closed eyes makes you "see" sparkles.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>A nerve always carries the same kind of message</td><td>law of specific nerve energies</td></tr><tr><td>Where is the perception of a tree?</td><td>In the brain, not in the tree or the eye</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Pressure on the eye still feels like light because the optic nerve only has one "word" it can say.</p></details>
+
+<p class="meta">Source: slides 2-3</p></section><section id="s2"><h2>The path through the eye and retina <span class="tag high">high yield</span></h2>
+<div class="plain"><p>Light comes in through the <b>pupil</b>. The <b>cornea</b> and <b>lens</b> focus it onto the <b>retina</b> at the back of the eye. The picture lands upside down and flipped left-right. Here's the weird part: the retina is wired backwards. Light passes through the other cells first and hits the receptors at the very back. Then the message travels forward like a relay race: <b>receptor &rarr; bipolar cell &rarr; ganglion cell</b>. The ganglion cells' axons bundle into the <b>optic nerve</b>. Where that bundle punches out the back of the eye, there are no receptors, so you get a <b>blind spot</b>.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Order of cells in the retina</td><td>photoreceptor &rarr; bipolar &rarr; ganglion &rarr; optic nerve</td></tr><tr><td>Which cells' axons form the optic nerve?</td><td>ganglion cells</td></tr><tr><td>Why is there a blind spot?</td><td>the optic nerve (and blood vessels) leave there, so no receptors</td></tr><tr><td>Cell that makes lateral inhibition</td><td>horizontal cells</td></tr><tr><td>Cell that shapes responses to shape and movement</td><td>amacrine cells</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Two side-helpers sit in the retina. <b>Horizontal cells</b> are the "shush" cells: they quiet down neighbors (that's lateral inhibition, section 5). <b>Amacrine cells</b> pass messages sideways and help ganglion cells respond to shapes and movement.</p></details>
+
+<p class="meta">Source: slides 4-6, 22</p></section><section id="s3"><h2>Rods vs cones <span class="tag high">high yield</span></h2>
+<div class="plain"><p>You have two kinds of light catchers. <b>Rods</b> are night-vision goggles: super sensitive to dim light, no color, and they live in the edges of the retina (the <b>periphery</b>). <b>Cones</b> are the HD color camera: they need bright light, give color and sharp detail, and pack into the center spot called the <b>fovea</b>. You have about 120 million rods but only 6 million cones. In the periphery, lots of rods share one ganglion cell (a group chat), so it catches faint light but is blurry. In the fovea, each cone gets its own ganglion cell (a private line), so it's sharp.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Night / dim light vision</td><td>rods, periphery</td></tr><tr><td>Color and detail vision</td><td>cones, fovea</td></tr><tr><td>Why is peripheral vision blurry but good in dim light?</td><td>many receptors converge on one ganglion cell</td></tr><tr><td>What does light do to 11-cis-retinal?</td><td>converts it to all-trans-retinal, starts a second messenger cascade</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Both rods and cones hold a light-sensitive chemical. Light bends it from a shape called <b>11-cis-retinal</b> into <b>all-trans-retinal</b>, like snapping a folded straw straight. That snap kicks off a <b>second messenger</b> chain inside the cell. </p></details>
+<p class="supplement">In the dark, receptors are actually "on" (depolarized) and keep releasing glutamate; light turns them down.</p>
+<p class="meta">Source: slides 7-11</p></section><section id="s4"><h2>How you see color: three theories <span class="tag high">high yield</span></h2>
+<div class="plain"><p>Three theories, each explaining a different piece. <b>Trichromatic</b> (Young-Helmholtz): you have three cone types tuned to <b>short</b>, <b>medium</b> and <b>long</b> wavelengths (roughly blue, green, red). Color is the <i>ratio</i> of how hard each one fires, like mixing three paint buckets. <b>Opponent-process</b>: the brain reads color as tug-of-war pairs, <b>red vs green</b> and <b>yellow vs blue</b>. Stare at red too long, the red side gets tired, and you see a green <b>negative afterimage</b>. <b>Retinex</b>: your brain compares one spot to everything around it, which is why a banana still looks yellow under weird lighting (<b>color constancy</b>). Color blindness is usually red-green, and the gene is on the <b>X chromosome</b>.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Three cone types / ratio of firing</td><td>trichromatic (Young-Helmholtz)</td></tr><tr><td>Negative afterimage</td><td>opponent-process</td></tr><tr><td>Color looks the same under different lighting</td><td>color constancy &rarr; retinex</td></tr><tr><td>Red-green color deficiency, which chromosome?</td><td>X chromosome</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Brighter light makes all three cones fire harder by the same amount, so the ratio (the color) stays the same and only the brightness goes up. The slides suggest opponent pairs could come from bipolar cells that get excited by one color and inhibited by its opposite.</p></details>
+
+<p class="meta">Source: slides 12-21</p></section><section id="s5"><h2>Lateral inhibition: the edge sharpener <span class="tag medium">medium yield</span></h2>
+<div class="plain"><p>When a receptor gets stimulated, it tells its neighbors to quiet down. That's <b>lateral inhibition</b>, and horizontal cells do it. Think of a crowd where everyone shushes the people next to them: the loud spots stand out more. At the edge between light and dark, this makes the bright side look a bit brighter and the dark side a bit darker, so <b>edges and contrast pop</b>. The dark spots you see at the crossroads of a white grid are this effect.</p></div>
+<figure><video controls preload="metadata" poster="li-poster.jpg" src="LateralInhibition.mp4"></video>
+<figcaption>Generated explainer, 97 s, local narration. It ends on the exam cues; the questions page is <a href="lateral-inhibition.html">here</a>. Then try the <a href="lateral-inhibition-lab.html">predict, then drag lab</a>.</figcaption></figure>
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Sharpens borders / enhances contrast</td><td>lateral inhibition</td></tr><tr><td>Which retinal cell?</td><td>horizontal cells</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Every visual cell's answer is the sum of its "go" signals minus its "stop" signals. Neighbors adding "stop" at a border is what exaggerates the difference.</p></details>
+
+<p class="meta">Source: slides 15, 24-25</p></section><section id="s6"><h2>From the eye to the cortex <span class="tag high">high yield</span></h2>
+<div class="plain"><p>The two optic nerves meet at the <b>optic chiasm</b>, an X-shaped crossing where <b>half the fibers from each eye cross</b> to the other side. Most of the signal goes to the <b>lateral geniculate nucleus (LGN)</b> of the thalamus, which works like a mail sorting room. A little goes to the superior colliculus. From the LGN it heads to the <b>primary visual cortex, V1</b>. In V1, Hubel and Wiesel found cells that act like picky specialists. <b>Simple cells</b> want a bar or edge in one exact spot. <b>Complex cells</b> want a bar at one angle, anywhere in a big area, and they love movement. <b>End-stopped cells</b> are complex cells that hate it when the bar runs too long. Some people with V1 damage show <b>blindsight</b>: they say they see nothing but still point at the object correctly.</p></div>
+<figure><img src="visual-pathway.png" alt="Visual pathway from both eyes through the optic chiasm and LGN to V1, color-coded by visual field">
+<figcaption>Generated diagram. Color = which half of the visual field the fibers carry.</figcaption></figure>
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Where do half the fibers cross?</td><td>optic chiasm</td></tr><tr><td>Main thalamic relay for vision</td><td>lateral geniculate nucleus</td></tr><tr><td>Primary visual cortex</td><td>area V1</td></tr><tr><td>Responds to stimuli without conscious awareness</td><td>blindsight (V1 damage)</td></tr><tr><td>Bar at fixed location / any location / not too long</td><td>simple / complex / end-stopped</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Cells in visual cortex may be <b>feature detectors</b>: each fires for one feature. Stare at one feature long enough and those detectors get tired, so you become less sensitive to it. One idea for blindsight is that small islands of healthy V1 survive.</p></details>
+
+<p class="meta">Source: slides 23, 26-33</p></section><section id="s7"><h2>The "what" and "how" streams <span class="tag high">high yield</span></h2>
+<div class="plain"><p>After V1 and V2, vision splits into two roads. The <b>ventral stream</b> runs down into the <b>temporal</b> lobe: the <b>"what"</b> road. It names things. The <b>dorsal stream</b> runs up into the <b>parietal</b> lobe: the <b>"how"</b> road. It guides your hand. Break the ventral road and you can reach for a cup perfectly but can't say it's a cup (<b>visual agnosia</b>). Break the dorsal road and you know it's a cup but your hand misses it. One special spot on the "what" road, the <b>fusiform gyrus</b>, is the face specialist. Damage it and you get <b>prosopagnosia</b>: faces stop being recognizable, even your mom's.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>"What" pathway / temporal</td><td>ventral stream</td></tr><tr><td>"How" pathway / parietal / visually guided movement</td><td>dorsal stream</td></tr><tr><td>Sees it, can't name it</td><td>ventral damage, visual agnosia</td></tr><tr><td>Names it, can't reach for it</td><td>dorsal damage</td></tr><tr><td>Can't recognize faces</td><td>prosopagnosia, fusiform gyrus</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Newborns already prefer a right-side-up face, which suggests face recognition is partly built in. "Super-recognizers" have extra-strong wiring between the fusiform gyrus and the occipital cortex.</p></details>
+
+<p class="meta">Source: slides 39-45</p></section><section id="s8"><h2>Motion, and why you can't see your own eyes move <span class="tag medium">medium yield</span></h2>
+<div class="plain"><p>Area <b>MT</b> (also called <b>V5</b>) is the motion detector: it fires for things moving in a certain direction. Its neighbor <b>MST</b> fires when the whole scene grows, shrinks or spins, like when you walk forward. Lose MT and you get <b>motion blindness</b>: the world looks like a slideshow, so pouring coffee becomes a disaster. Fun one: look at your eyes in your selfie camera and switch from your left eye to your right. You can't see them move! Right before a quick eye jump (a <b>saccade</b>), your brain turns down <b>MT</b> and part of the <b>parietal cortex</b> for a split second, about 75 ms early. That's <b>saccadic suppression</b>: it stops the world from smearing every time your eyes jump.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Perception of motion</td><td>area MT (V5)</td></tr><tr><td>Whole scene expands, contracts, rotates</td><td>MST</td></tr><tr><td>Can't tell if or how fast things move</td><td>motion blindness, MT damage</td></tr><tr><td>Brain quiets vision during an eye jump</td><td>saccadic suppression: MT + parietal, starts ~75 ms early</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>The deck (slide 49) calls the activity drop itself "saccades". Strictly, a saccade is the eye jump, and the drop is <b>saccadic suppression</b>. Write "saccadic suppression" for that idea; if a question just says "saccades", it means the eye movements. MT can be separate from object recognition (ventral stream), which is why MT damage leaves naming objects intact.</p></details>
+
+<p class="meta">Source: slides 46-51</p></section><section id="s9"><h2>Development: depth, strabismus, astigmatism <span class="tag medium">medium yield</span></h2>
+<div class="plain"><p>Your two eyes see slightly different pictures. Your brain compares them (<b>retinal disparity</b>) to judge distance. That's <b>stereoscopic depth perception</b>, like how 3D movie glasses work. But the brain has to <i>learn</i> this in childhood by getting matching input from both eyes. With <b>strabismus</b> ("lazy eye", eyes pointing different ways), the two eyes send unrelated pictures, so each cortex cell picks one eye and drops the other. Then 3D depth never develops properly. Similar idea: <b>astigmatism</b> blurs lines in one direction, and 70% of infants have it.</p></div>
+
+<div class="table-wrap"><table class="cues"><thead><tr><th>If the question says</th><th>Answer</th></tr></thead><tbody><tr><td>Depth from comparing the two eyes</td><td>retinal disparity, stereoscopic depth perception</td></tr><tr><td>Eyes misaligned in childhood</td><td>strabismus (lazy eye)</td></tr><tr><td>Why does strabismus hurt depth?</td><td>unrelated input, cells keep one eye only, disparity detectors never form</td></tr></tbody></table></div>
+<details><summary>Why it works (optional)</summary><p>Ganglion cells come in types too: <b>parvocellular</b> (small, near the fovea, color and detail), <b>magnocellular</b> (big, everywhere, overall shape and motion) and <b>koniocellular</b>. Motion areas MT and MST mostly get magnocellular input, which is why they ignore color.</p></details>
+
+<p class="meta">Source: slides 35-38</p></section>
+<h2>Flashcards</h2><div class="cards"><div class="card"><div class="front">Law of specific nerve energies</div><div class="back">A nerve always signals the same kind of thing</div></div><div class="card"><div class="front">Fovea</div><div class="back">Center of the retina, packed with cones, sharp detail</div></div><div class="card"><div class="front">Blindsight</div><div class="back">Responding to things you report not seeing, after V1 damage</div></div><div class="card"><div class="front">MT / V5</div><div class="back">Motion perception</div></div><div class="card"><div class="front">Retinal disparity</div><div class="back">The two eyes see slightly different images; the basis of depth</div></div><div class="card"><div class="front">Prosopagnosia</div><div class="back">Impaired face recognition, fusiform gyrus</div></div></div>
+<section class="quiz" id="practice"><h3>Practice: explain-why questions (say the answer out loud first)</h3><ol><li>Why would damage to MT cause motion blindness but leave object recognition intact?<div class="a">MT handles motion; naming objects runs through the ventral (temporal) stream, a different route. Knock out MT and the "what" road still works.</div></li><li>Why does strabismus impair depth perception?<div class="a">Depth needs the two eyes' pictures compared. Misaligned eyes send unrelated pictures, so cortex cells pick one eye and the disparity detectors never get built.</div></li><li>Why does lateral inhibition improve visual perception?<div class="a">Each active cell shushes its neighbors, so at an edge the difference gets exaggerated and borders stand out.</div></li></ol></section>
+<section class="quiz" id="post-test"><h3>Post-test: 5 new questions, after you study</h3><ol><li>Order the retinal relay from receptor to optic nerve.<div class="a">Photoreceptor, bipolar cell, ganglion cell, optic nerve.</div></li><li>Why is peripheral vision good in dim light but blurry?<div class="a">Many receptors converge on one ganglion cell.</div></li><li>Which theory explains color constancy?<div class="a">Retinex: the cortex compares areas across the retina.</div></li><li>A bar of light in one exact spot vs. anywhere in a large field: which V1 cells?<div class="a">Simple cells vs. complex cells.</div></li><li>Can't recognize faces after damage to which area?<div class="a">The fusiform gyrus (prosopagnosia).</div></li></ol></section>
+<p class="meta">Tell your study agent both scores. It logs them and shows the gain.</p>
+</main><script>
+/* study.js: behavior for study pages. Quiz self-scoring, flashcards, theme toggle.
+   Works with no build step and no network. */
+(function () {
+  // Theme toggle (optional button.theme-toggle); remembered per browser when storage works.
+  var root = document.documentElement, KEY = "study-theme";
+  try { var saved = localStorage.getItem(KEY); if (saved) root.dataset.theme = saved; } catch (e) {}
+  document.querySelectorAll(".theme-toggle").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+      root.dataset.theme = dark ? "light" : "dark";
+      try { localStorage.setItem(KEY, root.dataset.theme); } catch (e) {}
+    });
+  });
+
+  // Quiz: "Show answers" reveals every .a; "I got it" boxes count toward the score.
+  document.querySelectorAll(".quiz").forEach(function (q) {
+    var items = q.querySelectorAll("li");
+    items.forEach(function (li) {
+      if (!li.querySelector(".a")) return;
+      var lab = document.createElement("label"); lab.className = "got";
+      lab.innerHTML = '<input type="checkbox"> I got it';
+      li.querySelector(".a").appendChild(lab);
+    });
+    var bar = document.createElement("div"); bar.className = "bar";
+    bar.innerHTML = '<button class="btn" type="button">Show answers</button><span class="score" aria-live="polite"></span>';
+    q.appendChild(bar);
+    var btn = bar.querySelector("button"), score = bar.querySelector(".score");
+    function update() {
+      var n = q.querySelectorAll(".got input:checked").length;
+      score.textContent = q.classList.contains("revealed") ? n + " / " + items.length : "";
+    }
+    btn.addEventListener("click", function () {
+      q.classList.toggle("revealed");
+      btn.textContent = q.classList.contains("revealed") ? "Hide answers" : "Show answers";
+      update();
+    });
+    q.addEventListener("change", update);
+  });
+
+  // Flashcards
+  document.querySelectorAll(".card").forEach(function (c) {
+    c.tabIndex = 0; c.setAttribute("role", "button");
+    function flip() { c.classList.toggle("flipped"); }
+    c.addEventListener("click", flip);
+    c.addEventListener("keydown", function (e) { if (e.key === " " || e.key === "Enter") { e.preventDefault(); flip(); } });
+  });
+})();
+</script></body></html>

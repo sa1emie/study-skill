@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit Name: Study Guide</title>
+<link rel="stylesheet" href="study.css">
+<!-- Math pages only: KaTeX from a CDN (see references/design.md, "Math").
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body)"></script>
+-->
+</head>
+<body>
+<main>
+  <header class="page-head">
+    <button class="theme-toggle" type="button">Light / dark</button>
+    <h1>Unit name: study guide</h1>
+    <p class="meta">Exam date, what it covers, sources used (slides 1-51, review sheet)</p>
+  </header>
+
+  <section class="quiz" id="pre-test">
+    <h3>Pre-test: 5 questions, before you read</h3>
+    <ol>
+      <li>Question one?<div class="a">Answer one.</div></li>
+      <li>Question two?<div class="a">Answer two.</div></li>
+    </ol>
+  </section>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#c1">Concept one</a></li>
+      <li><a href="#c2">Concept two</a></li>
+    </ol>
+  </nav>
+
+  <section id="c1">
+    <h2>Concept one <span class="tag high">high yield</span></h2>
+    <div class="plain">
+      <p>What it is in normal words, with one concrete analogy. Then the real term in <strong>bold</strong>.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="cues">
+        <thead><tr><th>If the question says</th><th>Answer</th></tr></thead>
+        <tbody>
+          <tr><td>a phrase the exam uses</td><td>the answer</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <figure>
+      <img src="diagrams/concept-one.png" alt="Describe the diagram">
+      <figcaption>Color = one meaning. Source: slides 22-25.</figcaption>
+    </figure>
+    <details>
+      <summary>Why it works (optional)</summary>
+      <p>The mechanism, demoted but never deleted.</p>
+    </details>
+    <p class="supplement">Anything added beyond the course material is labeled like this.</p>
+  </section>
+
+  <section id="c2">
+    <h2>Concept two <span class="tag medium">medium</span></h2>
+    <div class="cards">
+      <div class="card"><div class="front">Front of a card?</div><div class="back">Back of the card.</div></div>
+    </div>
+  </section>
+
+  <section class="quiz" id="post-test">
+    <h3>Post-test: 5 new questions, after you study</h3>
+    <ol>
+      <li>Question one?<div class="a">Answer one.</div></li>
+    </ol>
+  </section>
+  <p class="meta">Tell your study agent both scores so it can log them.</p>
+</main>
+<script src="study.js"></script>
+</body>
+</html>

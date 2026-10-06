@@ -13,6 +13,8 @@ transport, and bioenergetics.
 **Mode:** Companion (set Oct 3). Switch any time by asking for a guide,
 flashcards, or a package.
 
+**Register:** plain (set Oct 3, after "just tell me how to do it").
+
 **Authority:** Dr. A. Rivera, lecture (MWF). Separate lab instructor not yet
 modeled, so nothing in `authority.md` speaks for the lab. Full detail and
 confidence tiers in `authority.md`.

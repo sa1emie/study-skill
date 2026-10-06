@@ -17,7 +17,21 @@ a corpus from recordings, check your institution's policy on recording lectures.
 | `authority.md` | The confidence-tiering format. Every OBSERVED claim carries a quote; softer claims are downgraded to INFERRED, and the coverage table up top states how far the model can be trusted. |
 | `concepts.md` | Concept rows with shape, prereqs, and yield backed by evidence rather than assertion. |
 | `.ingest.json` | Source classification and the vocabulary-normalization audit trail, including tokens that were dropped rather than guessed. |
+| `mastery.json` | What the scheduler reads and writes: score, interval, next review per concept, recorded errors, and the pre/post test log. Try `python3 study/scripts/schedule.py examples/example-unit due`. |
 
 The pattern worth copying: notice that `authority.md` has a section called
 "What this model does NOT support". A model that cannot say what it does not
 know will confidently misdirect a whole semester.
+
+## Explainer video example
+
+`explainer/lateral_inhibition.json` (narration beats plus the closing
+questions) and `explainer/lateral_inhibition.py` (the Manim scene) are the
+complete source of the demo video on the project site. After running
+`study/scripts/explainer/setup.sh`:
+
+```bash
+cd examples/explainer
+~/.local/share/explainer/venv/bin/python ../../study/scripts/explainer/make.py \
+  lateral_inhibition.py LateralInhibition lateral_inhibition.json out --draft
+```
