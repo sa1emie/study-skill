@@ -1,4 +1,4 @@
-# Side routes: math rendering and chat hand-off
+# Side routes: math rendering, checking work, chat hand-off
 
 ## Math by surface
 
@@ -40,3 +40,27 @@ save it as `out/<unit>-handoff.md`:
    when the student asks to see one solved (5C.2 rule 8).
 
 Run the KaTeX check on the file, then give the path.
+
+---
+
+## CHECK WORK: verifying an attempt
+
+When the student pastes their own attempted work (a solution, a draft, a
+problem-set attempt) and asks whether it is right, or says "check my work":
+
+1. **Verify before judging.** Work the problem or re-derive the claim first,
+   from the material and the authority's method. Never pattern-match on how
+   confident the answer looks.
+2. **Grade on the working, not the luck:**
+   - right reasoning, right answer: hit, name what was good, one line on what is next
+   - right answer, reasoning missing or wrong: hint at best; ask for the reasoning before crediting anything
+   - right reasoning, arithmetic slip: keep the method credited, name the error class, log the slip
+   - wrong reasoning that lands on a plausible answer: miss; locate the point where the model breaks
+3. **One verdict per item**, terse, and every wrong item gets a repair rep on
+   the same idea instead of a re-lecture.
+4. **Log the outcome.** A checked attempt is a graded attempt;
+   `schedule.py record` per item.
+5. **The boundary.** This route verifies the student's own work at their
+   request. It does not produce a submission for them (Guardrail 8). For graded
+   work: coach the method, verify their attempt, hand them a fresh analogue to
+   solve, never a clean answer to submit.

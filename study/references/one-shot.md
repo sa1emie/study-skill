@@ -7,7 +7,10 @@ Loaded from `SKILL.md`. Read this file before doing the work it covers.
 ### 4O.1 Establish the timeline
 
 Deadline comes from the material (or an LMS integration, if the agent has one)
-first. Only ask if neither has it, and then ask exactly once: "How long until the exam?"
+first. Only ask if neither has it, and then ask exactly once: "How long until
+the exam?" The moment it exists, write it into `mastery.json` (`record ...
+--deadline YYYY-MM-DD`, or edit the file) and into `unit.md`, so a later
+Companion session caps reviews with it.
 
 No deadline and no exam (self-teaching, curiosity): skip urgency entirely and
 build for depth.
@@ -99,7 +102,10 @@ Build the files. Do not describe how they could build them.
 | Predict-then-drag simulation | `references/visual.md` |
 | Everything else | Markdown in `out/`, unless the student named a format |
 
-Artifacts land in `out/`. Record what was built, and when, in `unit.md`.
+Artifacts land in `out/`. Record what was built, and when, in `unit.md`, plus
+the pre/post label used in each artifact and the five weakest concepts at
+handoff (`references/state.md`, handoff records). A package nobody can resume
+without the original chat is a package that gets rebuilt from zero.
 
 ### 5O.4 Register inside the artifact
 

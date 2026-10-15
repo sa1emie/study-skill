@@ -135,5 +135,7 @@ an emphasis count, a syllabus weighting, or a scope quote. No bare assertions.
 ### 3.3 The path is computed, never stored
 Topological sort on prereqs, then reorder by yield and deadline pressure. A
 stored path goes stale the moment mastery changes, and a stale plan is worse
-than none because it gets trusted.
+than none because it gets trusted. Prereq ids must resolve: every id typed in
+`concepts.md` is a row in the same table. `schedule.py check` reports dangling
+ids and cycles; run it after any graph edit.
 

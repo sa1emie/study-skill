@@ -15,6 +15,8 @@ adapters/
   cursor/study.mdc              project-scoped rule, points at study.md
   agents-md/study-section.md    snippet for AGENTS.md (Codex, OpenCode, etc.)
 basic-chat/README.md            fallback for plain chat UIs, no file system
+tests/                          test suite for the scripts and study.md
+.github/workflows/ci.yml        runs the tests on every push and pull request
 ```
 
 ## Claude Code
@@ -172,3 +174,15 @@ python3 tools/build_portable.py
 The Cursor and AGENTS.md adapters point at `study.md`, so they need no resync.
 The demo site in `docs/` is static; rebuild a page with
 `python3 study/scripts/inline.py page.src.html page.html` when you change it.
+
+Run the tests before you push (CI runs them too, on every pull request):
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+They cover the scheduler (including the `check` repair path), the portable
+build staying current, the Anki export and page inliner, and, when
+`npm install --no-save katex` has been run, the math checker. One test fails
+loudly if `study.md` is out of date, so regeneration is part of the change,
+not an afterthought.

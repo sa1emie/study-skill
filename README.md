@@ -110,6 +110,7 @@ better its sense of what matters.
 | "make a diagram of the visual pathway" | Draws it, renders it, checks it, adds it to the guide |
 | "make a video on lateral inhibition" | A narrated 60-120 s explainer that ends in questions |
 | "how am I doing?" | Shows weak topics, pre/post test gains, and what is due |
+| "check my work" | Verifies your attempt, marks the working not just the answer, drills the gap |
 
 **3. Come back.** Everything is saved in the folder: what you missed, when to
 review it next, what was built. Say "quiz me" next time and it picks up where
@@ -129,6 +130,8 @@ study/                 the skill (copy this folder to ~/.claude/skills/)
   assets/              the HTML design system: study.css, study.js, template.html
 study.md               the whole skill in one file, for other tools (generated)
 adapters/              Cursor rule and AGENTS.md snippet
+tests/                 test suite for the scripts and the generated file
+.github/workflows/     CI: tests on every push and pull request
 docs/                  the demo site
 examples/              a fabricated example unit and the demo video's source
 tools/build_portable.py  rebuilds study.md from study/
@@ -152,6 +155,10 @@ asking. Keys are listed in [INSTALL.md](INSTALL.md#configuration).
    (getting an advanced topic right gives partial credit to its
    prerequisites), or **One-shot** builds the package. Both measure with a
    pre-test and a post-test.
+5. **State check.** Every session on an existing unit validates the concept
+   graph and the saved progress together (`schedule.py check`) before it
+   drills, so a renamed topic or a stale score gets found instead of studied
+   around. Old progress files are migrated, never dropped.
 
 Full detail in [`study/SKILL.md`](study/SKILL.md).
 
