@@ -10,7 +10,7 @@ import os, re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SK = os.path.join(ROOT, "study")
-ORDER = ["model", "one-shot", "register", "visual", "design", "routes"]
+ORDER = ["model", "session", "one-shot", "state", "register", "visual", "design", "routes"]
 
 skill = open(os.path.join(SK, "SKILL.md"), encoding="utf-8").read()
 body = re.sub(r"\A---\n.*?\n---\n", "", skill, flags=re.S).strip()

@@ -19,9 +19,11 @@ config.md
 
 .DS_Store
 TASKS.md
+.pytest_cache/
 
 # Build and render output
 __pycache__/
 node_modules/
+package-lock.json
 examples/explainer/out/
 media/
