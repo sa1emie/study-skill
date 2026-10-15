@@ -7,7 +7,7 @@ Loaded from `SKILL.md`. Read before drilling a Companion session.
 1. Ask. Nothing else in the message.
 2. Wait for the answer.
 3. Grade, naming what was right and what was missing in one or two sentences.
-4. One repair rep on the same idea, phrased differently, when there was a miss.
+4. One repair rep on the same idea, phrased differently, when there was a miss. Do not spend it in the same breath as the explanation: park it for a few items later in the session. An immediate repetition is the explanation talking, not the student thinking.
 5. Log it (`schedule.py record`).
 
 Steps 1 and 2 are not optional. Producing the answer before a real attempt is a
@@ -35,6 +35,11 @@ Rungs, in order. Never skip two at once:
 Two hints into the same item, the item is over: mark it a miss, teach it, and
 re-ask a new phrasing immediately. Letting a student grind through a hint-assisted item to a "hit" is how a state file learns things the student cannot do.
 
+Hints also tighten the schedule, so repeated hinting shows up as shorter
+spacing rather than longer: the first consecutive hint grows the interval 1.5x,
+a second consecutive hint holds it, and a third resets it to a day. Clear the
+streak with a clean hit.
+
 ## Confidence before feedback
 
 On new or shaky material, ask for a 1 to 5 confidence rating before revealing
@@ -49,6 +54,8 @@ whether the answer was right. It costs a sentence and it changes what you do nex
 
 Use it where the two signals disagree, not on everything. If confidence
 ratings become a ritual, drop them back to new and recently missed concepts.
+Record the rating on the attempt (`record ID hit --confidence 4`); the row
+keeps the latest one and nothing else.
 
 ## Grading rules
 
@@ -56,15 +63,17 @@ ratings become a ritual, drop them back to new and recently missed concepts.
 - Judge the reasoning, not the wording. Accept any phrasing that carries the
   same mechanism, and never upgrade vagueness because it sounds confident.
 - "I knew that" is an override, not a rescue: apply it only when the answer was
-  substantively right, and record `override: true` instead of a clean score.
+  substantively right, and record the flag (`record ID hit --override`) instead
+  of a clean score.
 - When an answer is genuinely ambiguous under the authority's wording, say so,
   grade the substance, and note the ambiguity on the concept: the exam will
   pick one version.
 - Never talk yourself into a hit. A miss logged as a hit is invisible
   corruption: the scheduler trusts it and stops showing the concept.
 - On `quantitative`, name the error class in the same words every time
-  (setup, sign, unit, arithmetic, formula recall). The recurring class is the
-  drill target, not the individual question.
+  (setup, sign, unit, arithmetic, formula recall) and pass it on the record
+  call (`--error setup`) so the row accumulates the recurring class. That
+  class is the drill target, not the individual question.
 
 ## Teach-backs
 
@@ -77,7 +86,9 @@ the student, with no notes:
 - handles one edge case or "what if" you choose.
 
 Failing a leg is a miss plus a teaching pass, not a failed session. Record it
-like any other graded attempt.
+like any other graded attempt, and tag which leg failed
+(`--error teachback:example`) so a leg that keeps failing shows up as a
+pattern on the row.
 
 ## The fresh-question reserve
 
@@ -92,16 +103,25 @@ resource they are. Every question sits in one of five exposure states:
 | taught-not-drilled | explained, never asked | as unseen for grading |
 | burnt | used in a real test or timed set | never for the same purpose again; later, only as a warm-up |
 
-Keep at least three unseen items per concept for `discrete-fact` and
-`mechanism` shapes, refilled between sessions, not during one. When the
-material does not contain enough items, generate them in the authority's
-phrasing and label them as generated. Prefer a new surface (new numbers, new
-example, reversed direction) over a restatement.
+Keep the reserve floor: 3 unseen items for high-yield concepts, 2 for medium,
+1 for low, refilled between sessions, not during one. When the material does
+not contain enough items, generate them in the authority's phrasing and label
+them as generated. Prefer a new surface (new numbers, new example, reversed
+direction) over a restatement.
 
-Where the states live: in Companion, `log.md` records what was asked, so check
-the last few sessions before reusing an item. In a One-shot artifact bank, the
-same states decide what goes in the pre-test, the practice set, and the
-post-test, and the post-test draws unseen items only.
+Where the states live: in Companion, `log.md` records what was asked, and
+`questions.json` holds the index (id, concept, state) so the reserve is
+checkable at a glance:
+
+```
+schedule.py <unit> questions add q12 c5-lateral-inhibition
+schedule.py <unit> questions mark q12 seen-correct
+```
+
+Add items as they are written and mark the state when an item lands, so the
+count stays honest. In a One-shot artifact bank, the same states decide what
+goes in the pre-test, the practice set, and the post-test, and the post-test
+draws unseen items only.
 
 ## Difficulty ladder, and what counts as stuck
 
@@ -111,6 +131,8 @@ combined item). When the student stalls:
 - Shrink the step before adding a hint. A smaller question often unsticks
   faster than any clue.
 - Two failed attempts on the same rung earn one ladder rung, once.
+- A clean first-try hit also moves the ladder: the next item on that concept
+  should be a rung up (a new surface, or combined with another concept).
 - Never rescue by doing the thinking. Doing it for them is the one move that
   guarantees the session taught nothing.
 
@@ -124,7 +146,9 @@ When the date is close:
   own item patterns.
 - Honesty about conditions: an ordinary chat cannot proctor an exam. If the
   real assessment is closed-book or monitored, drill under those rules and
-  never report a supported session as exam-condition performance.
+  never report a supported session as exam-condition performance. Record the
+  conditions on any score taken under them (`test pre|post .. --conditions
+  open-book`), so a supported score is never read back as exam-condition work.
 - After the real test, ask how it went, record it in `unit.md`, and rebuild the
   review plan around whatever leaked.
 
@@ -140,7 +164,19 @@ an earlier session or another model may have written it wrong.
 ## After the session
 
 1. Run the writes: one `schedule.py record` per graded item, then the post-test.
-2. Append one terse block to `log.md`.
+2. Append one terse block to `log.md`, four lines at most:
+
+```
+2026-10-15
+- drilled: m1, m2 hit; g3 hint x2, miss (sign)
+- flags: m2 override; g3 confidence 2
+- reserve: q4 seen-correct; q7 added
+- built: out/guide.html (pre/post label "membranes"); next: m1 in 3 days
+```
+
+The date leads, each line starts with `- `, ids are spelled exactly as in
+`concepts.md`, and lines that have nothing to say are left out. Append only;
+never rewrite an old block.
 3. State the next due concept, then stop.
 
 No padding, no recap of everything covered. The state file and `log.md` are the

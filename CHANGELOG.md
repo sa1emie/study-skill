@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.2 (2026-10-15)
+
+- **State files fail loudly instead of quietly.** A `mastery.json` that does
+  not parse, or whose `concepts` is not a row object, is a named finding
+  (`E_STATE_CORRUPT`, `E_STATE_BROKEN`). Every command refuses out of it with
+  exit 2 instead of tracebacking, and `check --fix` quarantines the file as
+  `mastery.json.corrupt` (bytes preserved, suffixed on collision) rather than
+  rewriting it.
+- **`record` writes what the docs promised.** `--error CLASS` (repeatable),
+  `--confidence 1-5` and `--override` now land in the row, and `--deadline`
+  persists into `mastery.json` on the call that learns it, so the review cap
+  survives later sessions.
+- **Command line errors are explanations, not tracebacks.** Bad dates,
+  dangling flags and flags that belong to another command exit 2 with one
+  line. The exit code contract is documented: 0 done, 1 warnings or a refused
+  write, 2 errors or could not run.
+- **Spacing rules.** Intervals cap at 90 days. A first consecutive hint grows
+  the interval 1.5x, a second holds it, a third resets to a day. Close to a
+  deadline, intervals compress so reviews taper in instead of stacking onto
+  deadline day. Constants live at the top of `scripts/schedule.py`.
+- **Fresh-question reserve index.** An optional `questions.json` tracks item
+  ids and their five exposure states (`questions add`, `questions mark`), and
+  `check` warns (`W_RESERVE_LOW`) when a tracked concept drops under its
+  unseen floor: 3 high yield, 2 medium, 1 low. Units without the file get no
+  nagging.
+- **`rename` command** for reconciling a renamed concept row, and repaired
+  pairing: a post-test matches the most recent pre-test with the same label
+  and notes the day gap when it is long.
+- **Hardening elsewhere.** `due`, `record`, `test` and `check` survive
+  hand-broken rows (non-object rows, junk scores) without crashing; what only
+  a human can fix is printed as cannot-fix lines; `check --fix` never creates
+  a missing state file; metadata like `exam` and `unit` survives migration;
+  self-prerequisite rows report once; `anki_export.py` survives junk scores
+  and unreadable card files.
+- **Tests and CI**: 35 new regression tests (73 total), ResourceWarning leaks
+  fixed, Python 3.9 added to the CI matrix.
+
 ## 2.1 (2026-10-15)
 
 - **State integrity.** A session on an existing unit now starts with

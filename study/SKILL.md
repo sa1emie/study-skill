@@ -103,6 +103,7 @@ Finished units move to `<root>/archive/`.
   concepts.md      concept graph: id, shape, prereqs, yield, evidence
   authority.md     per-authority model, every claim confidence-tiered
   mastery.json     canonical state: deadline, per-concept score/interval/next_due/errors, tests (pre/post)
+  questions.json   reserve index: item id -> concept, exposure state, last. Absent means not tracked
   log.md           append-only terse session record
   .ingest.json     sha256 -> {type, distilled_at, corrections} so nothing is read twice
   out/             generated artifacts land here. Deliverables, not state.
@@ -154,8 +155,9 @@ front ("just make me a study guide", "quiz me"), skip the question.
 ### 0.2 Every later invocation
 
 Start with the state read: `config.md` if present, `unit.md`, and, when
-`mastery.json` exists, `schedule.py <unit> check` (exit 0 clean, 1 warnings, 2
-errors; `references/state.md`). Fix what the check reports before drilling, say
+`mastery.json` exists, `schedule.py <unit> check` (exit 0 clean, 1 warnings or
+a refused write, 2 errors or could-not-run; `references/state.md`). Fix what
+the check reports before drilling, say
 what is off in one sentence, then read `mode:` from `unit.md` and route on the
 message:
 
@@ -210,8 +212,9 @@ record the answer in `unit.md`.
   names its evidence. `prereqs` are real ids (comma separated) or `-`:
   `scripts/schedule.py` reads them.
 - When the deadline becomes known (syllabus, LMS, or the student), write it
-  into `mastery.json` (`record ... --deadline YYYY-MM-DD`, or edit the file) and
-  into `unit.md`. A deadline that lives only in a conversation caps nothing.
+  into `mastery.json` (`record ... --deadline YYYY-MM-DD` persists it; editing
+  the file also works) and into `unit.md`. A deadline that lives only in a
+  conversation caps nothing.
 - Privacy: `authority.md` is a file of quotes attributed to a real person.
   Keep it local; never publish it without the instructor's consent.
 
@@ -292,9 +295,10 @@ minutes, and then say the session is unmeasured.
 3. **Answer-length discipline.** Questions answerable in 1 to 10 words; chain
    follow-ups. Full explain-back 1 to 3 times per session, highest yield only.
 4. **Grading.** You call it. The student overrides with a short signal ("I knew
-   that"). Record overrides as `override: true`, not as clean scores.
-5. **Error typing on `quantitative`.** Record the error class; a recurring class
-   becomes its own drill target.
+   that"). Record overrides with `--override` on the record call, not as clean
+   scores.
+5. **Error typing on `quantitative`.** Record the error class (`--error setup`);
+   a recurring class becomes its own drill target.
 6. **Crash safety.** Write `mastery.json` during the session, not only at the end.
 7. **Settled answers stay settled.** Do not reopen an answered question or a
    plan the student set unless they ask.
@@ -318,6 +322,11 @@ Weak: <concept>, <concept>
 Due next: <concept> in <n> days
 Next session: <one line>
 ```
+
+When the session ran under supported, open-book, or timed rules, add a sixth
+line `Conditions: <x>` under the pre/post line, and record the same value on
+the test (`--conditions open-book`). A supported score must never read back as
+exam-condition work.
 
 Nothing to copy, nothing to paste back.
 
@@ -377,24 +386,36 @@ Simple and transparent, with prerequisite credit. Never hand-edit intervals;
 run the script after every graded item:
 
 ```
-python3 SKILL_DIR/scripts/schedule.py <unit> record <concept-id> hit|hint|miss [--deadline YYYY-MM-DD]
+python3 SKILL_DIR/scripts/schedule.py <unit> record ID hit|hint|miss [--error CLASS] [--confidence 1-5] [--override] [--deadline YYYY-MM-DD]
 python3 SKILL_DIR/scripts/schedule.py <unit> due [--limit 10]
+python3 SKILL_DIR/scripts/schedule.py <unit> test pre|post N 5 [--label "<topic>"] [--conditions supported|open-book|timed]
 python3 SKILL_DIR/scripts/schedule.py <unit> check [--fix]
+python3 SKILL_DIR/scripts/schedule.py <unit> rename OLD NEW
+python3 SKILL_DIR/scripts/schedule.py <unit> questions [add ID CONCEPT | mark ID STATE]
 ```
 
-- Hit on first try: interval x 2.5. After a hint: x 1.5. Miss: 1 day.
+- Hit on first try: interval x 2.5. First consecutive hint: x 1.5; a second
+  holds it; a third resets to a day. Miss: 1 day. Ceiling: 90 days.
 - A hit passes partial credit down the prereqs (0.5, then 0.25), pushing their
   next review later, but only for prereqs already learned (score 0.5+).
 - A miss pulls weak direct prereqs (score under 0.7) to tomorrow: the miss may
   be a prerequisite gap.
 - `due` orders reviews by how many due prereqs each one also covers, then yield.
-- Never past the deadline (`--deadline`, or `deadline` in mastery.json).
+- `--deadline` on a `record` call persists into `mastery.json`, and close to
+  the deadline intervals compress so reviews taper in instead of stacking onto
+  deadline day.
 - `record` refuses a concept id that is not in `concepts.md` and prints the
-  closest ids, which is the guard against orphan rows.
+  closest ids, which is the guard against orphan rows. It refuses a row that is
+  not an object the same way. Exit codes: 0 done, 1 warnings or a refused
+  write, 2 errors or could-not-run; bad arguments and unreadable state never
+  traceback.
 - `check` validates the graph and the state file together (0 clean, 1 warnings,
   2 errors, details in `references/state.md`). Run it at the start of a resumed
   session and after ingesting new material; `--fix` migrates legacy shapes and
-  repairs reversible drift, and never deletes a concept row.
+  repairs reversible drift, never deletes a concept row, never creates a
+  missing state file, and quarantines a corrupt file rather than rewriting it.
+- `rename` moves a state row after a graph rename; `questions` maintains the
+  fresh-question reserve index (`references/state.md`).
 
 ---
 
