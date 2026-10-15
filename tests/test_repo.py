@@ -49,7 +49,8 @@ class Portable(unittest.TestCase):
                           "%s exists but SKILL.md never points at it" % f)
 
     def test_script_paths_in_docs_exist(self):
-        text = open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8").read()
+        with open(os.path.join(SKILL, "SKILL.md"), encoding="utf-8") as f:
+            text = f.read()
         for ref in os.listdir(os.path.join(SKILL, "references")):
             with open(os.path.join(SKILL, "references", ref), encoding="utf-8") as f:
                 text += f.read()
