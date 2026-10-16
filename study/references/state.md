@@ -16,12 +16,15 @@ wild; only the first is written:
 | empty | no file yet, or a file with no recognizable rows | created or canonicalized on the first write |
 | corrupt | does not parse as a JSON object | hand fix, or `check --fix` quarantines it |
 | broken | parses, but `concepts` is not an object of rows | same as corrupt |
+| unreadable | exists, but cannot be opened (permissions, a folder) | fix permissions by hand; never moved |
 
-Corrupt and broken files are never rewritten: the bytes could be the only
-record of a term's work. Every command refuses out of them with exit 2.
-`check --fix` alone moves the file aside as `mastery.json.corrupt` (bytes
-preserved, `-2` and `-3` suffix on collision) so a fresh, empty canonical file
-can start, and says so.
+Corrupt, broken and unreadable files are never rewritten: the bytes could be
+the only record of a term's work. Every command refuses out of them with exit
+2. `check --fix` alone moves a corrupt or broken file aside as
+`mastery.json.corrupt` (bytes preserved, `-2` and `-3` suffix on collision,
+never over an earlier backup) so a fresh, empty canonical file can start, and
+says so. An unreadable file may be perfectly good state, so nothing moves it.
+A UTF-8 byte order mark, which some Windows editors add, is read normally.
 
 Per-concept fields:
 
@@ -69,12 +72,17 @@ at the top of `scripts/schedule.py` if a unit argues for different ones.
   `record` reads it back. A deadline that lives only in a conversation caps
   nothing.
 - `schedule.py <unit> rename OLD NEW [--force]` moves a state row onto a new
-  id after the row itself was renamed in `concepts.md`. It refuses a new id
-  that is not in the graph unless `--force` is passed, and refuses to merge
-  two rows; that one is a careful hand job.
-- Arguments are checked before anything runs: a bad date, a dangling flag, or
-  a flag that does not apply to the command exits 2 with a one-line message,
-  never a traceback.
+  id after the row itself was renamed in `concepts.md`, and moves the
+  `questions.json` items that tracked the old id. It refuses a new id that is
+  not in the graph unless `--force` is passed, refuses to merge two rows (a
+  careful hand job), and refuses while `questions.json` does not parse.
+- A post-test's gain is measured against the most recent pre-test with the
+  same label taken before it. A pre-test taken later never counts.
+- Arguments are checked before anything runs: a bad date (exactly
+  `YYYY-MM-DD`), a flag missing its value (a value may not start with `--`),
+  `--limit` under 1, or a flag that does not apply to the command exits 2 with
+  a one-line message, never a traceback. So does a `concepts.md` that is not
+  UTF-8 text, and a folder the script cannot write to.
 - Write during the session, not at the end.
 - One writer at a time. If another session may have run, re-read the file
   before writing.
@@ -127,10 +135,11 @@ Finding codes, for reading the output fast:
 | `E_NEXT_DUE`, `E_DEADLINE` | error | a date field that is not a date |
 | `E_INTERVAL` | error | interval not positive |
 | `E_ROW_TYPE` | error | a concept row that is not an object; only a human can fix it |
-| `E_STATE_CORRUPT`, `E_STATE_BROKEN` | error | the state file could not be read at all; every command refuses until it is dealt with |
+| `E_STATE_CORRUPT`, `E_STATE_BROKEN`, `E_STATE_UNREADABLE` | error | the state file could not be read at all; every command refuses until it is dealt with |
 | `W_ORPHAN` | warning | a state id that is not in `concepts.md` |
 | `W_STATE_BEHIND` | warning | a drilled unit whose state covers under half the graph |
 | `W_FIELD_MISSING`, `W_FIELD_UNKNOWN` | warning | schema drift inside a row |
+| `W_FIELD_TYPE` | warning | a field with the wrong JSON type: a number written as text (`--fix` converts it), `errors` as a string (`--fix` wraps it in a list), or a `confidence`, `hint_streak` or `attempts` that is not a valid count (left for a human) |
 | `W_NO_DEADLINE` | warning | reviews are not capped |
 | `W_TEST_TOTAL` | warning | an impossible or empty test score |
 | `W_TEST_ENTRY` | warning | a tests entry that is not an object |

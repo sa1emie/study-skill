@@ -2,12 +2,13 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import graph, load, make_unit, row, sched
+from common import SCHED, graph, load, make_unit, row, sched
 
 T = "2026-03-01"
 
@@ -564,6 +565,184 @@ class Metadata(Base):
         m = load(os.path.join(u, "mastery.json"))
         self.assertEqual(m["exam"]["date"], "2026-06-01")
         self.assertEqual(m["concepts"]["a"]["attempts"], 2)
+
+
+class AuditFixes(Base):
+    """Regressions found by the v2.2 audit. Each one crashed, lost data, or
+    printed a wrong number before 2.2.1."""
+
+    def write(self, u, name, text, mode="w"):
+        with open(os.path.join(u, name), mode) as f:
+            f.write(text)
+
+    def test_self_prereq_and_cycle_give_no_self_credit(self):
+        for rows in ((("a", "A", "a", "high"),),
+                     (("a", "A", "b", "high"), ("b", "B", "a", "high"))):
+            u = self.unit(graph(*rows), {"concepts": {"a": row(score=0.9, attempts=3, interval=4)}},
+                          name="u%d" % len(rows))
+            code, out = sched(u, "record", "a", "hit", "--date", T)
+            self.assertEqual(code, 0, out)
+            c = load(os.path.join(u, "mastery.json"))["concepts"]["a"]
+            self.assertEqual(c["interval"], 10.0, out)
+            self.assertNotIn("implicit", c)
+
+    def test_gain_ignores_a_later_pre_test(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "test", "pre", 2, 10, "--label", "X", "--date", "2026-01-01")
+        sched(u, "test", "post", 8, 10, "--label", "X", "--date", "2026-01-05")
+        sched(u, "test", "pre", 9, 10, "--label", "X", "--date", "2026-02-01")
+        code, out = sched(u, "tests")
+        self.assertIn("gain +60 pts", out)
+        self.assertNotIn("gain -10", out)
+
+    def test_post_before_any_pre_is_unpaired(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"deadline": "2026-12-01", "concepts": {}})
+        code, out = sched(u, "test", "post", 8, 10, "--label", "X", "--date", "2026-01-05")
+        self.assertIn("no earlier pre-test", out)
+        sched(u, "test", "pre", 2, 10, "--label", "X", "--date", "2026-02-01")
+        code, out = sched(u, "check", "--date", T)
+        self.assertIn("I_UNPAIRED_POST", out)
+
+    def test_hint_hold_keeps_the_one_day_floor(self):
+        u = self.unit(graph(("a", "A", "-", "high")),
+                      {"concepts": {"a": row(interval=0.3, hint_streak=1)}})
+        sched(u, "record", "a", "hint", "--date", T)
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["interval"], 1.0)
+
+    def test_bad_questions_concepts_do_not_crash(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"deadline": "2026-12-01", "concepts": {}})
+        self.write(u, "questions.json", json.dumps({"items": {
+            "q1": {"concept": ["a"], "state": "unseen"},
+            "q2": {"concept": 5, "state": "unseen"},
+            "q3": {"concept": "a", "state": "unseen"}}}))
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("W_QUESTIONS_ENTRY", out)
+        self.assertNotIn("Traceback", out)
+        code, out = sched(u, "questions")
+        self.assertEqual(code, 0, out)
+
+    def test_unreadable_text_files_exit_2_without_traceback(self):
+        u = self.unit(None, {"concepts": {}})
+        self.write(u, "concepts.md", b"| id | prereqs | yield |\n|---|---|---|\n| caf\xe9 | - | high |\n", "wb")
+        for cmd in (("due",), ("check",), ("record", "a", "hit")):
+            p = subprocess.run([sys.executable, SCHED, u] + list(cmd), capture_output=True, text=True)
+            self.assertEqual(p.returncode, 2, p.stdout + p.stderr)
+            self.assertNotIn("Traceback", p.stderr)
+
+    def test_bom_state_is_read_not_quarantined(self):
+        u = self.unit(graph(("a", "A", "-", "high")))
+        self.write(u, "mastery.json", ("\ufeff" + json.dumps({"deadline": "2026-12-01",
+                   "concepts": {"a": row()}})).encode("utf-8"), "wb")
+        code, out = sched(u, "check", "--fix", "--date", T)
+        self.assertNotIn("E_STATE_CORRUPT", out)
+        self.assertFalse(os.path.exists(os.path.join(u, "mastery.json.corrupt")))
+        self.assertIn("a", load(os.path.join(u, "mastery.json"))["concepts"])
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root reads anything")
+    def test_unopenable_state_is_refused_and_never_moved(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {"a": row()}})
+        path = os.path.join(u, "mastery.json")
+        os.chmod(path, 0)
+        self.addCleanup(os.chmod, path, 0o644)
+        code, out = sched(u, "check", "--fix", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertIn("E_STATE_UNREADABLE", out)
+        self.assertTrue(os.path.exists(path))
+        self.assertFalse(os.path.exists(path + ".corrupt"))
+        code, out = sched(u, "record", "a", "hit", "--date", T)
+        self.assertEqual(code, 2, out)
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root writes anything")
+    def test_unwritable_unit_exits_2_without_traceback(self):
+        u = self.unit(graph(("a", "A", "-", "high")))
+        os.chmod(u, 0o555)
+        self.addCleanup(os.chmod, u, 0o755)
+        p = subprocess.run([sys.executable, SCHED, u, "record", "a", "hit"],
+                           capture_output=True, text=True)
+        self.assertEqual(p.returncode, 2, p.stdout + p.stderr)
+        self.assertNotIn("Traceback", p.stderr)
+
+    def test_quarantine_never_overwrites_a_backup(self):
+        u = self.unit(graph(("a", "A", "-", "high")))
+        path = os.path.join(u, "mastery.json")
+        self.write(u, "mastery.json.corrupt", "first")
+        self.write(u, "mastery.json", "{{second")
+        sched(u, "check", "--fix")
+        with open(path + ".corrupt") as f:
+            self.assertEqual(f.read(), "first")
+        with open(path + ".corrupt-2") as f:
+            self.assertEqual(f.read(), "{{second")
+
+    def test_rename_carries_question_items(self):
+        u = self.unit(graph(("a2", "A", "-", "high")), {"concepts": {"a": row()}})
+        self.write(u, "questions.json", json.dumps({"version": 1, "items": {
+            "q1": {"concept": "a", "state": "unseen", "last": None}}}))
+        code, out = sched(u, "rename", "a", "a2")
+        self.assertEqual(code, 0, out)
+        q = load(os.path.join(u, "questions.json"))
+        self.assertEqual(q["items"]["q1"]["concept"], "a2")
+        self.assertEqual(q["version"], 1)
+
+    def test_rename_warns_without_a_graph(self):
+        u = self.unit(None, {"concepts": {"a": row()}})
+        code, out = sched(u, "rename", "a", "b")
+        self.assertEqual(code, 0, out)
+        self.assertIn("could not be validated", out)
+
+    def test_questions_file_keeps_top_level_keys(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        self.write(u, "questions.json", json.dumps({"version": 3, "items": {}}))
+        sched(u, "questions", "add", "q1", "a")
+        sched(u, "questions", "mark", "q1", "burnt", "--date", T)
+        self.assertEqual(load(os.path.join(u, "questions.json"))["version"], 3)
+
+    def test_questions_report_lists_drilled_concepts_with_no_items(self):
+        u = self.unit(graph(("a", "A", "-", "high"), ("b", "B", "-", "low")),
+                      {"concepts": {"a": row(attempts=2)}})
+        self.write(u, "questions.json", json.dumps({"items": {
+            "q1": {"concept": "b", "state": "unseen", "last": None}}}))
+        code, out = sched(u, "questions")
+        self.assertRegex(out, r"a\s+unseen\s+0 .*LOW")
+
+    def test_flat_row_named_tests_keeps_test_history(self):
+        u = self.unit(graph(("tests", "T", "-", "high")),
+                      {"x": {"score": 0.5, "attempts": 1},
+                       "tests": [{"kind": "pre", "label": "", "correct": 1, "total": 2,
+                                  "date": "2026-01-01"}]})
+        code, out = sched(u, "record", "tests", "hit", "--date", T)
+        self.assertEqual(code, 0, out)
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertIsInstance(m["tests"], list)
+        self.assertEqual(m["concepts"]["tests"]["attempts"], 1)
+
+    def test_flag_values_and_dates_are_strict(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        for args in (("record", "a", "miss", "--error", "--override"),
+                     ("record", "a", "hit", "--date", "2026-01-01junk"),
+                     ("due", "--limit", "0"), ("due", "--limit", "-3")):
+            code, out = sched(u, *args)
+            self.assertEqual(code, 2, (args, out))
+        self.assertEqual(load(os.path.join(u, "mastery.json")), {"concepts": {}})
+
+    def test_check_reports_and_fixes_type_drift(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"deadline": "2026-12-01", "concepts": {
+            "a": row(score="0.5", attempts="2", errors="old-note", confidence=99, hint_streak=-4)}})
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        for field in ("score", "attempts", "errors", "confidence", "hint_streak"):
+            self.assertRegex(out, r"W_FIELD_TYPE\s+a %s" % field)
+        code, out = sched(u, "check", "--fix", "--date", T)
+        c = load(os.path.join(u, "mastery.json"))["concepts"]["a"]
+        self.assertEqual((c["score"], c["attempts"], c["errors"]), (0.5, 2, ["old-note"]))
+        self.assertEqual(c["confidence"], 99, "not reversible, so left for a human")
+        self.assertIn("cannot", out)
+
+    def test_record_keeps_a_hand_written_error_note(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {"a": row(errors="old-note")}})
+        sched(u, "record", "a", "miss", "--error", "new", "--date", T)
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["errors"],
+                         ["old-note", "new"])
 
 
 if __name__ == "__main__":

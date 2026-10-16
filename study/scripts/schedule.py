@@ -62,9 +62,12 @@ malformed prerequisites, cycles, stale next_due values, a missing deadline,
 pre-tests with no matching post-test, and a low fresh-question reserve when
 `questions.json` exists. Exit code 0 clean, 1 warnings, 2 errors. `--fix`
 repairs only what is reversible (shape migration, missing fields, score
-clamping, unknown field removal) and never deletes a concept row. A mastery.json
-that does not parse, or whose `concepts` is not an object, is reported and never
-overwritten; `--fix` moves it aside as mastery.json.corrupt, bytes preserved.
+clamping, numeric text converted, unknown field removal) and never deletes a
+concept row. A mastery.json that does not parse, or whose `concepts` is not an
+object, is reported and never overwritten; `--fix` moves it aside as
+mastery.json.corrupt, bytes preserved, never over an earlier backup. One that
+exists but cannot be opened (permissions) is refused and never moved.
+`rename` also moves the questions.json items that tracked the old id.
 
 Exit codes, any command: 0 done or clean; 1 warnings, or a write refused;
 2 errors, or the command could not run (bad arguments, unreadable state).
@@ -95,8 +98,14 @@ def parse_concepts(unit):
     path = os.path.join(unit, "concepts.md")
     if not os.path.exists(path):
         return graph
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            lines = f.readlines()
+    except (OSError, ValueError) as e:
+        raise UsageError("%s could not be read as UTF-8 text (%s); fix or re-save it"
+                         % (path, e.__class__.__name__))
     header = None
-    for line in open(path, encoding="utf-8"):
+    for line in lines:
         if not line.startswith("|"):
             header = None
             continue
@@ -128,18 +137,28 @@ def clean(s):
 def load(unit):
     """-> (data, store, path, shape).
 
-    Shapes: canonical | types | flat | empty (no rows yet) | corrupt (will not
-    parse, or is not an object) | broken ('concepts' exists but is not an
-    object of rows). Corrupt and broken files are never written to.
+    Shapes: canonical | types | flat | empty (no rows yet) | unreadable (the
+    file exists but could not be opened: permissions, a folder) | corrupt
+    (will not parse, or is not an object) | broken ('concepts' exists but is
+    not an object of rows). Unreadable, corrupt and broken files are never
+    written to. A UTF-8 byte order mark is accepted.
     """
     path = os.path.join(unit, "mastery.json")
     if not os.path.exists(path):
         data = {"concepts": {}}
         return data, data["concepts"], path, "empty"
     try:
-        with open(path, encoding="utf-8") as f:
-            data = json.load(f)
-    except (ValueError, OSError):
+        with open(path, encoding="utf-8-sig") as f:
+            text = f.read()
+    except OSError:
+        data = {"concepts": {}}
+        return data, data["concepts"], path, "unreadable"
+    except ValueError:
+        data = {"concepts": {}}
+        return data, data["concepts"], path, "corrupt"
+    try:
+        data = json.loads(text)
+    except ValueError:
         data = {"concepts": {}}
         return data, data["concepts"], path, "corrupt"
     if not isinstance(data, dict):
@@ -159,6 +178,11 @@ def load(unit):
 
 def refuse_unusable(shape, path):
     """True when the state file cannot be read. Nothing may be written then."""
+    if shape == "unreadable":
+        print("refused: %s exists but could not be opened (permissions, or not a file); "
+              "nothing was written." % path)
+        print("  fix its permissions; it may be perfectly good state, so nothing moves it aside.")
+        return True
     if shape == "corrupt":
         print("refused: %s does not parse as a JSON object; nothing was written." % path)
         print("  it holds your only state. Fix it by hand, or move it aside to start fresh.")
@@ -171,22 +195,39 @@ def refuse_unusable(shape, path):
 
 
 def quarantine(path):
-    """Move an unreadable state file aside, bytes intact. This never deletes."""
-    backup = path + ".corrupt"
-    n = 2
-    while os.path.exists(backup):
-        backup = "%s.corrupt-%d" % (path, n)
+    """Move an unparseable state file aside, bytes intact. This never deletes,
+    and never overwrites an earlier backup: the hard link fails if the name was
+    taken, even by another process between the check and the move."""
+    n = 1
+    while True:
+        backup = path + ".corrupt" if n == 1 else "%s.corrupt-%d" % (path, n)
         n += 1
-    os.replace(path, backup)
-    return backup
+        try:
+            os.link(path, backup)
+        except FileExistsError:
+            continue
+        except OSError:
+            # filesystems without hard links (FAT, some network mounts)
+            if os.path.exists(backup):
+                continue
+            os.replace(path, backup)
+            return backup
+        os.unlink(path)
+        return backup
+
+
+def legacy_metadata(data, store):
+    """Top-level keys of a legacy file that are not its concept rows. Identity,
+    not name: a new row called 'tests' must not swallow the real tests list."""
+    return {k: v for k, v in data.items()
+            if k not in ("concepts", "types") and not (k in store and store[k] is v)}
 
 
 def save(data, store, path, shape):
-    if shape in ("corrupt", "broken"):
+    if shape in ("corrupt", "broken", "unreadable"):
         raise RuntimeError("refusing to write over unreadable state")
     if not isinstance(data.get("concepts"), dict):
-        keep = {k: v for k, v in data.items()
-                if k not in store and k not in ("concepts", "types")}
+        keep = legacy_metadata(data, store)
         data = {"concepts": store}
         data.update(keep)
     tmp = path + ".tmp"
@@ -219,7 +260,7 @@ def capped(day, deadline):
 def parse_day(s):
     """A date argument from the command line, or a refusal. Never a traceback."""
     try:
-        return d(s)
+        return dt.date.fromisoformat(s)
     except (ValueError, TypeError):
         raise UsageError("expected a date like 2026-03-01, got '%s'" % s)
 
@@ -239,6 +280,33 @@ def row_of(store, cid):
     return c if isinstance(c, dict) else {}
 
 
+def type_drift(c):
+    """[(field, message, fixable)] for row fields whose JSON type is wrong but which
+    the scheduler would otherwise read silently. Hand edits produce these."""
+    out = []
+    for f in ("score", "attempts", "interval"):
+        v = c.get(f)
+        if isinstance(v, (str, bool)) and num(v, None) is not None:
+            out.append((f, "%s is %r, not a number; --fix converts it" % (f, v), True))
+    a = c.get("attempts")
+    if "attempts" in c and not isinstance(a, (str, bool)) and (num(a, None) is None or num(a) < 0):
+        out.append(("attempts", "attempts %r is not a count" % (a,), False))
+    e = c.get("errors")
+    if "errors" in c and not isinstance(e, list):
+        ok = isinstance(e, str) and bool(e)
+        out.append(("errors", "errors is %s, not a list%s" % (type(e).__name__,
+                    "; --fix wraps it in one" if ok else ""), ok))
+    if "confidence" in c:
+        v = c.get("confidence")
+        if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 5:
+            out.append(("confidence", "confidence %r is not a whole number 1 to 5" % (v,), False))
+    if "hint_streak" in c:
+        v = c.get("hint_streak")
+        if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+            out.append(("hint_streak", "hint_streak %r is not a count" % (v,), False))
+    return out
+
+
 def compress(iv, today, deadline):
     """Shorten an interval that would land past the deadline. Reviews taper in
     near the deadline instead of stacking onto deadline day."""
@@ -254,7 +322,7 @@ def arg(a, name, default=None):
     if name not in a:
         return default
     i = a.index(name)
-    if i + 1 >= len(a):
+    if i + 1 >= len(a) or a[i + 1].startswith("--"):
         raise UsageError("%s needs a value" % name)
     return a[i + 1]
 
@@ -264,7 +332,7 @@ def arg_all(a, name):
     out = []
     for i, tok in enumerate(a):
         if tok == name:
-            if i + 1 >= len(a):
+            if i + 1 >= len(a) or a[i + 1].startswith("--"):
                 raise UsageError("%s needs a value" % name)
             out.append(a[i + 1])
     return out
@@ -285,6 +353,8 @@ def ancestors(graph, cid):
     out, stack = {}, [(p, 1) for p in graph.get(cid, {}).get("prereqs", [])]
     while stack:
         p, depth = stack.pop()
+        if p == cid:
+            continue  # a self-prereq or a cycle: no concept credits or covers itself
         if p in out and out[p] <= depth:
             continue
         out[p] = depth
@@ -347,7 +417,7 @@ def record(unit, cid, result, today, deadline, force=False, errors=(), confidenc
         return 1
     c = store.setdefault(cid, {"score": 0.0, "attempts": 0})
     iv = num(c.get("interval"), 1.0)
-    streak = int(num(c.get("hint_streak"), 0))
+    streak = max(0, int(num(c.get("hint_streak"), 0)))
     if result == "hit":
         iv = max(1.0, iv * 2.5)
     elif result == "hint":
@@ -357,7 +427,7 @@ def record(unit, cid, result, today, deadline, force=False, errors=(), confidenc
             iv = max(1.0, iv * 1.5)
     else:
         iv = 1.0
-    iv = compress(min(iv, INTERVAL_CEILING), today, deadline)
+    iv = compress(min(max(iv, 1.0), INTERVAL_CEILING), today, deadline)
     c["interval"] = round(iv, 2)
     c["attempts"] = int(num(c.get("attempts"), 0)) + 1
     c["score"] = round(0.7 * num(c.get("score")) + 0.3 * RETURN[result], 3)
@@ -365,7 +435,8 @@ def record(unit, cid, result, today, deadline, force=False, errors=(), confidenc
     c["last"] = today.isoformat()
     c["next_due"] = capped(today + dt.timedelta(days=days(iv)), deadline).isoformat()
     if errors:
-        seen = c.get("errors") if isinstance(c.get("errors"), list) else []
+        old = c.get("errors")
+        seen = old if isinstance(old, list) else ([old] if isinstance(old, str) and old else [])
         for e in errors:
             if e not in seen:
                 seen.append(e)
@@ -376,7 +447,7 @@ def record(unit, cid, result, today, deadline, force=False, errors=(), confidenc
         c["confidence"] = confidence
     notes = []
     if errors:
-        notes.append("errors: %s" % ", ".join(errors))
+        notes.append("errors: %s" % ", ".join(dict.fromkeys(errors)))
     if override:
         notes.append("override")
     if confidence is not None:
@@ -425,7 +496,14 @@ def rename(unit, old, new, force=False):
         print("refused: '%s' already has a state row; merging two rows is a hand job." % new)
         return 1
     graph = parse_concepts(unit)
-    if graph and new not in graph and not force:
+    items, qpath, qshape, qdata = load_questions(unit)
+    if qshape == "corrupt":
+        print("refused: %s does not parse, so its items could not follow the rename; "
+              "fix it first." % qpath)
+        return 1
+    if not graph:
+        print("warning: no parseable concepts.md here, so '%s' could not be validated." % new)
+    elif new not in graph and not force:
         close = nearest(new, graph)
         print("refused: '%s' is not in concepts.md, so the rename would only make a new orphan." % new)
         if close:
@@ -435,6 +513,12 @@ def rename(unit, old, new, force=False):
     store[new] = store.pop(old)
     save(data, store, path, shape)
     print("renamed state row %s -> %s" % (old, new))
+    moved = [qid for qid, it in items.items() if q_concept(it) == old]
+    if moved:
+        for qid in moved:
+            items[qid]["concept"] = new
+        save_questions(qdata, qpath)
+        print("moved %d questions.json item%s to %s" % (len(moved), "" if len(moved) == 1 else "s", new))
     return 0
 
 
@@ -494,13 +578,10 @@ def test(unit, kind, correct, total, label, today, conditions=None):
         print("refused: 'tests' in %s is %s, not a list; nothing was written."
               % (path, type(tests).__name__))
         return 2
-    if kind == "post":
-        wants = [t for t in tests if isinstance(t, dict) and t.get("kind") == "pre"
-                 and (t.get("label") or "") == (label or "")]
-        if not wants:
-            print("warning: no pre-test labelled '%s' to compare this against." % (label or ""))
     entry = {"date": today.isoformat(), "kind": kind, "label": label,
              "correct": correct, "total": total}
+    if kind == "post" and pre_for(tests + [entry], entry) is None:
+        print("warning: no earlier pre-test labelled '%s' to compare this against." % (label or ""))
     if conditions:
         entry["conditions"] = conditions
     tests.append(entry)
@@ -510,17 +591,27 @@ def test(unit, kind, correct, total, label, today, conditions=None):
     return 0
 
 
-def pair_pres(tests):
-    """label -> the most recent matching pre-test (by date, then file order)."""
-    out = {}
-    for t in tests:
-        if not isinstance(t, dict) or t.get("kind") != "pre":
+def pre_for(tests, post):
+    """The pre-test a post-test is measured against: same label, taken before it
+    (an earlier date, or the same date and earlier in the file), the most recent
+    such. A pre-test taken after the post never counts. None when there is none."""
+    label = post.get("label") or ""
+    when = safe_d(post.get("date"))
+    pos = next((i for i, t in enumerate(tests) if t is post), len(tests))
+    best, best_key = None, None
+    for i, t in enumerate(tests):
+        if not isinstance(t, dict) or t.get("kind") != "pre" or (t.get("label") or "") != label:
             continue
-        label = t.get("label") or ""
-        cur = out.get(label)
-        if cur is None or safe_d(t.get("date"), dt.date.min) >= safe_d(cur.get("date"), dt.date.min):
-            out[label] = t
-    return out
+        td = safe_d(t.get("date"))
+        if when and td:
+            if td > when or (td == when and i > pos):
+                continue
+        elif i > pos:
+            continue
+        key = (td or dt.date.min, i)
+        if best_key is None or key >= best_key:
+            best, best_key = t, key
+    return best
 
 
 def show(unit, as_json=False):
@@ -534,7 +625,6 @@ def show(unit, as_json=False):
     if as_json:
         print(json.dumps(tests, indent=2))
         return 0
-    pres = pair_pres(tests)
     for t in tests:
         total = num(t.get("total"))
         pct = 100 * num(t.get("correct")) / total if total else 0
@@ -543,7 +633,7 @@ def show(unit, as_json=False):
         if t.get("conditions"):
             line += " [%s]" % t["conditions"]
         if t.get("kind") == "post":
-            pre = pres.get(t.get("label") or "")
+            pre = pre_for(tests, t)
             if pre is not None:
                 ptotal = num(pre.get("total"))
                 ppct = 100 * num(pre.get("correct")) / ptotal if ptotal else 0
@@ -558,29 +648,37 @@ def show(unit, as_json=False):
 # ------------------------------------------------- the fresh-question reserve
 
 def load_questions(unit):
-    """-> (items, path, shape). shapes: none (no file) | ok | corrupt.
+    """-> (items, path, shape, data). shapes: none (no file) | ok | corrupt.
 
-    items maps an item id to {"concept": cid, "state": state, "last": day|None}.
+    items maps an item id to {"concept": cid, "state": state, "last": day|None};
+    data is the whole file, so other top-level keys survive a save.
     """
     path = os.path.join(unit, "questions.json")
     if not os.path.exists(path):
-        return {}, path, "none"
+        data = {"items": {}}
+        return data["items"], path, "none", data
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:
             data = json.load(f)
     except (ValueError, OSError):
-        return {}, path, "corrupt"
+        return {}, path, "corrupt", None
     items = data.get("items") if isinstance(data, dict) else None
     if not isinstance(items, dict):
-        return {}, path, "corrupt"
-    return items, path, "ok"
+        return {}, path, "corrupt", None
+    return items, path, "ok", data
 
 
-def save_questions(items, path):
+def save_questions(data, path):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"items": items}, f, indent=2, ensure_ascii=False)
+        json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+
+
+def q_concept(it):
+    """The concept id an item tracks, or None when it is missing or not a string."""
+    c = it.get("concept") if isinstance(it, dict) else None
+    return c if isinstance(c, str) and c else None
 
 
 def questions_add(unit, qid, cid, state, force=False):
@@ -588,7 +686,7 @@ def questions_add(unit, qid, cid, state, force=False):
         raise UsageError("state must be one of: %s, got '%s'"
                          % (", ".join(QUESTION_STATES), state))
     graph = parse_concepts(unit)
-    items, path, shape = load_questions(unit)
+    items, path, shape, qdata = load_questions(unit)
     if shape == "corrupt":
         print("refused: %s does not parse; fix or remove it by hand." % path)
         return 2
@@ -611,7 +709,7 @@ def questions_add(unit, qid, cid, state, force=False):
     if graph and cid not in graph:
         print("warning: '%s' is not in concepts.md; tracked anyway (--force)." % cid)
     items[qid] = {"concept": cid, "state": state, "last": None}
-    save_questions(items, path)
+    save_questions(qdata, path)
     print("added %s (%s, %s)" % (qid, cid, state))
     return 0
 
@@ -620,7 +718,7 @@ def questions_mark(unit, qid, state, today):
     if state not in QUESTION_STATES:
         raise UsageError("state must be one of: %s, got '%s'"
                          % (", ".join(QUESTION_STATES), state))
-    items, path, shape = load_questions(unit)
+    items, path, shape, qdata = load_questions(unit)
     if shape == "corrupt":
         print("refused: %s does not parse; fix or remove it by hand." % path)
         return 2
@@ -631,13 +729,13 @@ def questions_mark(unit, qid, state, today):
         return 1
     it["state"] = state
     it["last"] = today.isoformat()
-    save_questions(items, path)
+    save_questions(qdata, path)
     print("%s -> %s (last %s)" % (qid, state, today.isoformat()))
     return 0
 
 
 def questions_report(unit, as_json=False):
-    items, path, shape = load_questions(unit)
+    items, path, shape, _ = load_questions(unit)
     if shape == "corrupt":
         print("refused: %s does not parse as a JSON object with an items object." % path)
         return 2
@@ -649,10 +747,16 @@ def questions_report(unit, as_json=False):
     counts = {}
     for qid in sorted(items):
         it = items[qid] if isinstance(items[qid], dict) else {}
-        cid = it.get("concept") or "(no concept)"
+        cid = q_concept(it) or "(no concept)"
         st = it.get("state") if it.get("state") in QUESTION_STATES else "(bad state)"
         counts.setdefault(cid, {})
         counts[cid][st] = counts[cid].get(st, 0) + 1
+    # drilled graph concepts with no items are under the floor too, as in check
+    _, store, _, mshape = load(unit)
+    if mshape not in ("corrupt", "broken", "unreadable"):
+        for cid in graph:
+            if cid not in counts and num(row_of(store, cid).get("attempts")) > 0:
+                counts[cid] = {}
     if as_json:
         print(json.dumps({"path": path, "items": items, "by_concept": counts}, indent=2))
         return 0
@@ -694,6 +798,10 @@ def analyze(unit, today):
         add("error", "E_PREREQ_CYCLE", "prerequisite cycle: %s" % " -> ".join(cycle))
 
     # ---- is the state file usable at all?
+    if shape == "unreadable":
+        add("error", "E_STATE_UNREADABLE",
+            "mastery.json exists but could not be opened (permissions, or not a file)")
+        return findings, graph, data, store, path, shape
     if shape == "corrupt":
         add("error", "E_STATE_CORRUPT",
             "mastery.json does not parse as a JSON object, so nothing in it could be read")
@@ -738,6 +846,8 @@ def analyze(unit, today):
         for f in c:
             if f not in ALLOWED_FIELDS:
                 add("warning", "W_FIELD_UNKNOWN", "%s has unknown field '%s'; --fix drops it" % (cid, f), cid)
+        for _, msg, _ in type_drift(c):
+            add("warning", "W_FIELD_TYPE", "%s %s" % (cid, msg), cid)
         if "score" in c:
             s = num(c.get("score"), None)
             if s is None:
@@ -785,14 +895,14 @@ def analyze(unit, today):
         elif num(t.get("correct")) > total_n:
             add("warning", "W_TEST_TOTAL",
                 "a %s test scores %s/%s" % (t.get("kind"), t.get("correct"), t.get("total")))
-    pre_by_label = pair_pres([t for t in raw_tests if isinstance(t, dict)])
     for t in raw_tests:
-        if isinstance(t, dict) and t.get("kind") == "post" and (t.get("label") or "") not in pre_by_label:
+        if isinstance(t, dict) and t.get("kind") == "post" and pre_for(raw_tests, t) is None:
             add("info", "I_UNPAIRED_POST",
-                "post-test '%s' has no matching pre-test, so no gain can be shown" % (t.get("label") or ""))
+                "post-test '%s' has no earlier pre-test with that label, so no gain can be shown"
+                % (t.get("label") or ""))
 
     # ---- fresh-question reserve (questions.json, read only when it exists)
-    items, qpath, qshape = load_questions(unit)
+    items, qpath, qshape, _ = load_questions(unit)
     if qshape == "corrupt":
         add("warning", "W_QUESTIONS_FILE",
             "questions.json does not parse, so the reserve ledger was ignored")
@@ -802,19 +912,21 @@ def analyze(unit, today):
             if not isinstance(it, dict) or it.get("state") not in QUESTION_STATES:
                 add("warning", "W_QUESTIONS_ENTRY",
                     "item '%s' in questions.json has a missing or unknown state; check the file" % qid)
-            elif it.get("concept") and graph and it["concept"] not in graph:
+            elif q_concept(it) is None:
+                add("warning", "W_QUESTIONS_ENTRY",
+                    "item '%s' in questions.json has a missing or non-text concept; check the file" % qid)
+            elif graph and it["concept"] not in graph:
                 add("warning", "W_QUESTIONS_ORPHAN",
                     "item '%s' tracks concept '%s', which is not in concepts.md" % (qid, it["concept"]))
         low = []
         for cid, g in sorted(graph.items()):
             floor = RESERVE_FLOOR[g["yield"]]
-            tracked = any(isinstance(it, dict) and it.get("concept") == cid for it in items.values())
+            tracked = any(q_concept(it) == cid for it in items.values())
             drilled_c = num(row_of(store, cid).get("attempts")) > 0
             if not tracked and not drilled_c:
                 continue
             unseen = sum(1 for it in items.values()
-                         if isinstance(it, dict) and it.get("concept") == cid
-                         and it.get("state") == "unseen")
+                         if q_concept(it) == cid and it.get("state") == "unseen")
             if unseen < floor:
                 low.append("%s %d/%d" % (cid, unseen, floor))
         if low:
@@ -843,8 +955,7 @@ def _repair(data, store, path, shape, today):
             data["concepts"] = store
             data.pop("types", None)
         else:
-            keep = {k: v for k, v in data.items()
-                    if k not in store and k not in ("concepts", "types")}
+            keep = legacy_metadata(data, store)
             data = {"concepts": store}
             data.update(keep)
         data.setdefault("concepts", store)
@@ -858,6 +969,16 @@ def _repair(data, store, path, shape, today):
             cannot.append("row '%s' is %s, not an object; edit or remove it by hand"
                           % (cid, type(c).__name__))
             continue
+        for f, msg, ok in type_drift(c):
+            if not ok:
+                cannot.append("%s %s; edit it by hand" % (cid, msg))
+            elif f == "errors":
+                c["errors"] = [c["errors"]]
+                fixed.append("%s.errors wrapped in a list" % cid)
+            else:
+                v = num(c[f])
+                c[f] = int(v) if f == "attempts" and v == int(v) else v
+                fixed.append("%s.%s converted to %r" % (cid, f, c[f]))
         for f, v in (("score", 0.0), ("attempts", 0), ("interval", 1.0),
                      ("last", None), ("errors", [])):
             if f not in c:
@@ -902,7 +1023,10 @@ def check(unit, today, fix=False, as_json=False):
     findings, graph, data, store, path, shape = analyze(unit, today)
     fixed, cannot = [], []
     if fix and os.path.exists(path):
-        if shape in ("corrupt", "broken"):
+        if shape == "unreadable":
+            cannot.append("mastery.json could not be opened; fix its permissions by hand "
+                          "(it is not moved aside, it may be good state)")
+        elif shape in ("corrupt", "broken"):
             backup = quarantine(path)
             fixed.append("moved unreadable mastery.json to %s (bytes preserved)"
                          % os.path.basename(backup))
@@ -941,6 +1065,10 @@ def main():
     except UsageError as e:
         print("schedule.py: %s" % e)
         return 2
+    except OSError as e:
+        print("schedule.py: could not read or write %s (%s); nothing else was changed."
+              % (e.filename or "a file", e.strerror or e.__class__.__name__))
+        return 2
 
 
 def run(a):
@@ -978,6 +1106,8 @@ def run(a):
             limit = 10 if raw is None else int(raw)
         except ValueError:
             raise UsageError("--limit takes a whole number, got '%s'" % raw)
+        if limit < 1:
+            raise UsageError("--limit takes 1 or more, got %d" % limit)
         return due(unit, today, limit, "--json" in a)
     if cmd == "test":
         flags_ok(a, ("--date", "--label", "--conditions"))

@@ -1,5 +1,41 @@
 # Changelog
 
+## 2.2.1 (2026-10-16)
+
+Fixes from an independent audit of 2.2. Every item has a regression test
+(18 new, 91 total).
+
+- **No more tracebacks on bad files.** A `questions.json` item whose concept
+  is a list, an object or a number, a `concepts.md` that is not UTF-8 text or
+  is a folder, and a unit folder the script cannot write to all exit 2 with
+  one line. Malformed concepts are reported as `W_QUESTIONS_ENTRY`.
+- **Good state is no longer quarantined.** A `mastery.json` that exists but
+  cannot be opened is its own shape (`E_STATE_UNREADABLE`): refused, and never
+  moved aside. A UTF-8 byte order mark is read instead of being called
+  corrupt. Quarantine uses a hard link, so it cannot overwrite an earlier
+  backup even under a race.
+- **No self-credit.** A concept that lists itself as a prerequisite, or sits
+  in a cycle, no longer passes implicit credit to itself on a hit.
+- **Gain pairing respects time.** A post-test is compared with the most
+  recent same-label pre-test taken before it, never a later one.
+- **Spacing floor on every path.** A held hint (second in a row) keeps the
+  1-day floor, and a negative `hint_streak` counts as zero.
+- **`rename` carries the reserve.** `questions.json` items that tracked the
+  old id move to the new one, and a rename with no `concepts.md` warns.
+- **Nothing silently dropped.** `questions.json` keeps its other top-level
+  keys on save; a legacy flat file keeps its `tests` list even when a concept
+  is named `tests`; `record --error` keeps a hand-written string error note.
+- **Stricter arguments.** Dates must be exactly `YYYY-MM-DD`, a flag value
+  may not be another flag (`--error --override` used to store "--override"),
+  and `due --limit` must be 1 or more.
+- **`check` sees type drift.** New `W_FIELD_TYPE`: numbers written as text
+  (`--fix` converts), `errors` as a string (`--fix` wraps), and invalid
+  `confidence`, `hint_streak` or `attempts` (left for a human). The
+  `questions` report now lists drilled concepts with no items, as `check`
+  already did.
+- Not changed: concurrent writers still race (last write wins); the docs
+  already say one writer at a time.
+
 ## 2.2 (2026-10-15)
 
 - **State files fail loudly instead of quietly.** A `mastery.json` that does
