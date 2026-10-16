@@ -29,12 +29,14 @@ save it as `out/<unit>-handoff.md`:
 
 1. **Role**: a tutor that asks one question at a time, waits for the attempt,
    grades the working and the notation, not just the final answer.
-2. **Scope**: what the exam covers and what it does not (from `authority.md`).
+2. **Scope**: what the exam covers, when it is (from `authority.md` and
+   `unit.md`), and what it does not (from `authority.md`).
 3. **Canonical notation**: the course's exact formulas and symbols, copied from
    the exams, answer keys or slides. Chat tutors drift to textbook notation
    otherwise, so this section is not optional.
 4. **Where the student is**: done, weak (`mastery.json`), never touched.
-5. **Error patterns**: the recorded error classes (5C.2 rule 5).
+5. **Error patterns**: the recorded error classes (`--error` entries in
+   `mastery.json`, 5C.2 rule 5).
 6. **Problem shapes**: 3 to 6 real past problems, rewritten, with the method named.
 7. **Rules**: math in `$...$`, one question at a time, a worked example first
    when the student asks to see one solved (5C.2 rule 8).
@@ -57,9 +59,11 @@ problem-set attempt) and asks whether it is right, or says "check my work":
    - right reasoning, arithmetic slip: keep the method credited, name the error class, log the slip
    - wrong reasoning that lands on a plausible answer: miss; locate the point where the model breaks
 3. **One verdict per item**, terse, and every wrong item gets a repair rep on
-   the same idea instead of a re-lecture.
+   the same idea, later in the set rather than in the same breath as the
+   explanation, and never a re-lecture.
 4. **Log the outcome.** A checked attempt is a graded attempt;
-   `schedule.py record` per item.
+   `schedule.py record` per item, with the error class (`--error`) when one
+   shows up.
 5. **The boundary.** This route verifies the student's own work at their
    request. It does not produce a submission for them (Guardrail 8). For graded
    work: coach the method, verify their attempt, hand them a fresh analogue to

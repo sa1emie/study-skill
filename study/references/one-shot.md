@@ -9,8 +9,8 @@ Loaded from `SKILL.md`. Read this file before doing the work it covers.
 Deadline comes from the material (or an LMS integration, if the agent has one)
 first. Only ask if neither has it, and then ask exactly once: "How long until
 the exam?" The moment it exists, write it into `mastery.json` (`record ...
---deadline YYYY-MM-DD`, or edit the file) and into `unit.md`, so a later
-Companion session caps reviews with it.
+--deadline YYYY-MM-DD` persists it; editing the file also works) and into
+`unit.md`, so a later Companion session caps reviews with it.
 
 No deadline and no exam (self-teaching, curiosity): skip urgency entirely and
 build for depth.

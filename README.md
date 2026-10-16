@@ -158,7 +158,9 @@ asking. Keys are listed in [INSTALL.md](INSTALL.md#configuration).
 5. **State check.** Every session on an existing unit validates the concept
    graph and the saved progress together (`schedule.py check`) before it
    drills, so a renamed topic or a stale score gets found instead of studied
-   around. Old progress files are migrated, never dropped.
+   around. Old progress files are migrated in place and never dropped; a file
+   that cannot be parsed is set aside intact, so nothing is destroyed to make
+   the error go away.
 
 Full detail in [`study/SKILL.md`](study/SKILL.md).
 

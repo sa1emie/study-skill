@@ -240,5 +240,331 @@ class Check(Base):
         self.assertIn("W_NO_GRAPH", out)
 
 
+class RecordFlags(Base):
+    def test_deadline_flag_is_persisted(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "record", "a", "hit", "--date", T, "--deadline", "2026-04-01")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["deadline"], "2026-04-01")
+
+    def test_deadline_survives_later_records(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "record", "a", "hit", "--date", T, "--deadline", "2026-04-01")
+        sched(u, "record", "a", "hit", "--date", "2026-03-04")
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertEqual(m["deadline"], "2026-04-01")
+        self.assertLessEqual(m["concepts"]["a"]["next_due"], "2026-04-01")
+
+    def test_error_classes_append_and_dedupe(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "record", "a", "miss", "--date", T, "--error", "setup", "--error", "sign")
+        sched(u, "record", "a", "hint", "--date", T, "--error", "setup")
+        c = load(os.path.join(u, "mastery.json"))["concepts"]["a"]
+        self.assertEqual(c["errors"], ["setup", "sign"])
+
+    def test_confidence_and_override_are_stored(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "record", "a", "hit", "--date", T, "--confidence", "4", "--override")
+        self.assertEqual(code, 0, out)
+        c = load(os.path.join(u, "mastery.json"))["concepts"]["a"]
+        self.assertEqual(c["confidence"], 4)
+        self.assertIs(c["override"], True)
+
+    def test_bad_confidence_is_a_usage_error(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "record", "a", "hit", "--date", T, "--confidence", "9")
+        self.assertEqual(code, 2, out)
+
+    def test_hint_streak_holds_then_resets_interval(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "record", "a", "hint", "--date", "2026-03-01")
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["interval"], 1.5)
+        sched(u, "record", "a", "hint", "--date", "2026-03-03")
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["interval"], 1.5,
+                         "a second consecutive hint holds the interval")
+        sched(u, "record", "a", "hint", "--date", "2026-03-05")
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["interval"], 1.0,
+                         "a third consecutive hint resets to daily")
+
+    def test_record_refuses_row_that_is_not_an_object(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {"a": "oops"}})
+        with open(os.path.join(u, "mastery.json"), encoding="utf-8") as f:
+            before = f.read()
+        code, out = sched(u, "record", "a", "hit", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("not an object", out)
+        with open(os.path.join(u, "mastery.json"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), before)
+
+
+class Spacing(Base):
+    def test_interval_ceiling(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        for i in range(6):
+            sched(u, "record", "a", "hit", "--date", "2026-03-%02d" % (1 + i))
+        self.assertEqual(load(os.path.join(u, "mastery.json"))["concepts"]["a"]["interval"], 90)
+
+    def test_interval_compresses_toward_deadline(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "record", "a", "hit", "--date", "2026-03-01", "--deadline", "2026-03-21")
+        sched(u, "record", "a", "hit", "--date", "2026-03-04")
+        sched(u, "record", "a", "hit", "--date", "2026-03-11")
+        c = load(os.path.join(u, "mastery.json"))["concepts"]["a"]
+        self.assertEqual(c["interval"], 6.0, "15.625 days would land past the deadline")
+        self.assertEqual(c["next_due"], "2026-03-17")
+
+
+class CorruptState(Base):
+    def _write(self, u, text):
+        with open(os.path.join(u, "mastery.json"), "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def test_check_reports_corrupt_json(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, '{"concepts": {"a": ')
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertIn("E_STATE_CORRUPT", out)
+
+    def test_record_refuses_corrupt_and_keeps_bytes(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, "not json at all")
+        code, out = sched(u, "record", "a", "hit", "--date", T)
+        self.assertEqual(code, 2, out)
+        with open(os.path.join(u, "mastery.json"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), "not json at all")
+
+    def test_due_refuses_corrupt(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, "oops")
+        code, out = sched(u, "due", "--date", T)
+        self.assertEqual(code, 2, out)
+
+    def test_fix_quarantines_corrupt_file(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, '{"concepts": [')
+        code, out = sched(u, "check", "--fix", "--date", T)
+        self.assertIn("fixed", out)
+        self.assertNotIn("E_STATE_CORRUPT", out)
+        self.assertFalse(os.path.exists(os.path.join(u, "mastery.json")))
+        with open(os.path.join(u, "mastery.json.corrupt"), encoding="utf-8") as f:
+            self.assertEqual(f.read(), '{"concepts": [')
+        self.assertEqual(code, 1, out)
+
+    def test_second_quarantine_gets_a_suffix(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, "bad")
+        with open(os.path.join(u, "mastery.json.corrupt"), "w", encoding="utf-8") as f:
+            f.write("older")
+        sched(u, "check", "--fix", "--date", T)
+        self.assertTrue(os.path.exists(os.path.join(u, "mastery.json.corrupt-2")))
+
+    def test_broken_concepts_shape_is_refused(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": ["a", "b"]})
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertIn("E_STATE_BROKEN", out)
+        code, out = sched(u, "record", "a", "hit", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertTrue(load(os.path.join(u, "mastery.json"))["concepts"] == ["a", "b"])
+
+    def test_bare_list_state_is_refused(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        self._write(u, '["a", "b"]')
+        code, out = sched(u, "record", "a", "hit", "--date", T)
+        self.assertEqual(code, 2, out)
+        sched(u, "check", "--fix", "--date", T)
+        self.assertTrue(os.path.exists(os.path.join(u, "mastery.json.corrupt")))
+
+    def test_fix_never_creates_state(self):
+        u = self.unit(graph(("a", "A", "-", "high")), None)
+        sched(u, "check", "--fix", "--date", T)
+        self.assertFalse(os.path.exists(os.path.join(u, "mastery.json")))
+
+
+class MalformedRows(Base):
+    def test_due_survives_bad_rows_and_scores(self):
+        u = self.unit(graph(("a", "A", "-", "high"), ("b", "B", "-", "high")),
+                      {"concepts": {"a": "oops",
+                                    "b": {"score": "high", "attempts": "x",
+                                          "interval": "no", "next_due": "2026-02-01"}}})
+        code, out = sched(u, "due", "--date", T)
+        self.assertEqual(code, 0, out)
+        self.assertIn("2 due", out)
+
+    def test_check_reports_and_cannot_fix_bad_row(self):
+        u = self.unit(graph(("a", "A", "-", "high"), ("b", "B", "-", "high")),
+                      {"concepts": {"a": "oops", "b": row(next_due="2026-02-02")}})
+        code, out = sched(u, "check", "--fix", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertIn("E_ROW_TYPE", out)
+        self.assertIn("cannot", out)
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertEqual(m["concepts"]["a"], "oops", "cannot-fix rows stay put")
+
+    def test_junk_tests_entry_is_reported_not_crashed(self):
+        u = self.unit(graph(("a", "A", "-", "high")),
+                      {"deadline": "2026-12-01", "concepts": {},
+                       "tests": ["junk", {"date": T, "kind": "pre", "label": "x",
+                                          "correct": 1, "total": 5}]})
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("W_TEST_ENTRY", out)
+        code, out = sched(u, "tests")
+        self.assertEqual(code, 0, out)
+
+    def test_state_behind_counts_misses_too(self):
+        rows = [("c%02d" % i, "C", "-", "high") for i in range(12)]
+        u = self.unit(graph(*rows),
+                      {"deadline": "2026-12-01",
+                       "concepts": {"c00": row(score=0.0, attempts=2),
+                                    "c01": row(score=0.0, attempts=1)}})
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("W_STATE_BEHIND", out)
+
+
+class CliErrors(Base):
+    def test_bad_date_is_a_usage_error(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "due", "--date", "soon")
+        self.assertEqual(code, 2, out)
+        self.assertIn("expected a date", out)
+
+    def test_dangling_and_bad_flags_are_usage_errors(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        for args in (["due", "--limit"], ["due", "--limit", "abc"],
+                     ["due", "--deadline", "2026-01-01"], ["check", "--fixx"]):
+            code, out = sched(u, *args)
+            self.assertEqual(code, 2, "%s -> %s" % (args, out))
+            self.assertIn("schedule.py:", out)
+
+    def test_dangling_deadline_after_record(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "record", "a", "hit", "--deadline")
+        self.assertEqual(code, 2, out)
+        self.assertIn("--deadline needs a value", out)
+
+
+class SelfPrereq(Base):
+    def test_self_prereq_reported_once(self):
+        u = self.unit(graph(("x", "X", "x", "high")), {"concepts": {}})
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 2, out)
+        self.assertIn("E_PREREQ_SELF", out)
+        self.assertNotIn("E_PREREQ_CYCLE", out)
+
+
+class PostTests(Base):
+    def test_gain_pairs_by_label_not_order(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "test", "pre", 1, 5, "--label", "ch4", "--date", "2026-03-01")
+        sched(u, "test", "pre", 5, 5, "--label", "ch5", "--date", "2026-03-02")
+        code, out = sched(u, "test", "post", 3, 5, "--label", "ch4", "--date", "2026-03-03")
+        self.assertEqual(code, 0, out)
+        self.assertIn("gain +40 pts", out)
+
+    def test_gain_notes_a_long_gap(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        sched(u, "test", "pre", 1, 5, "--label", "x", "--date", "2026-03-01")
+        code, out = sched(u, "test", "post", 3, 5, "--label", "x", "--date", "2026-03-20")
+        self.assertIn("gain +40 pts over 19 days", out)
+
+    def test_conditions_recorded_and_shown(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "test", "post", 3, 5, "--label", "x", "--date", T,
+                          "--conditions", "supported")
+        self.assertEqual(code, 0, out)
+        self.assertIn("[supported]", out)
+        code, out = sched(u, "test", "post", 3, 5, "--label", "x", "--date", T,
+                          "--conditions", "vibes")
+        self.assertEqual(code, 2, out)
+
+
+class Reserve(Base):
+    def test_questions_flow(self):
+        u = self.unit(graph(("a", "A", "-", "high"), ("b", "B", "-", "high")), {"concepts": {}})
+        code, out = sched(u, "questions")
+        self.assertEqual(code, 0)
+        self.assertIn("no questions.json", out)
+        code, out = sched(u, "questions", "add", "q1", "a")
+        self.assertEqual(code, 0, out)
+        self.assertTrue(os.path.exists(os.path.join(u, "questions.json")))
+        code, out = sched(u, "questions", "add", "q1", "a")
+        self.assertEqual(code, 1, out)
+        code, out = sched(u, "questions", "add", "q2", "aa")
+        self.assertEqual(code, 1, out)
+        self.assertIn("closest ids", out)
+        sched(u, "questions", "add", "q3", "a", "--state", "burnt")
+        code, out = sched(u, "questions", "mark", "q3", "seen-wrong", "--date", T)
+        self.assertEqual(code, 0, out)
+        q = load(os.path.join(u, "questions.json"))["items"]
+        self.assertEqual(q["q3"]["state"], "seen-wrong")
+        self.assertEqual(q["q3"]["last"], T)
+        code, out = sched(u, "questions", "mark", "q9", "burnt")
+        self.assertEqual(code, 1, out)
+        code, out = sched(u, "questions", "--json")
+        data = json.loads(out)
+        self.assertIn("q1", data["items"])
+
+    def test_reserve_low_warns_in_check(self):
+        u = self.unit(graph(("a", "A", "-", "high")), {"concepts": {"a": row()}})
+        with open(os.path.join(u, "questions.json"), "w", encoding="utf-8") as f:
+            json.dump({"items": {"q1": {"concept": "a", "state": "unseen", "last": None}}}, f)
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("W_RESERVE_LOW", out)
+
+    def test_corrupt_questions_file_is_a_warning(self):
+        u = self.unit(graph(("a", "A", "-", "high")),
+                      {"deadline": "2026-12-01", "concepts": {}})
+        with open(os.path.join(u, "questions.json"), "w", encoding="utf-8") as f:
+            f.write("{{{")
+        code, out = sched(u, "check", "--date", T)
+        self.assertEqual(code, 1, out)
+        self.assertIn("W_QUESTIONS_FILE", out)
+
+
+class Rename(Base):
+    def test_rename_moves_row_after_graph_rename(self):
+        u = self.unit(graph(("a-new", "A", "-", "high")), {"concepts": {"a-old": row()}})
+        code, out = sched(u, "rename", "a-old", "a-new")
+        self.assertEqual(code, 0, out)
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertIn("a-new", m["concepts"])
+        self.assertNotIn("a-old", m["concepts"])
+
+    def test_rename_refusals(self):
+        u = self.unit(graph(("a", "A", "-", "high"), ("b", "B", "-", "high")),
+                      {"concepts": {"a": row(), "b": row()}})
+        code, out = sched(u, "rename", "ghost", "a")
+        self.assertEqual(code, 1, out)
+        code, out = sched(u, "rename", "a", "b")
+        self.assertEqual(code, 1, out)
+        self.assertIn("already has a state row", out)
+        code, out = sched(u, "rename", "a", "zz-nowhere")
+        self.assertEqual(code, 1, out)
+        self.assertIn("not in concepts.md", out)
+
+
+class Metadata(Base):
+    def test_fix_keeps_dict_metadata(self):
+        u = self.unit(graph(("a", "A", "-", "high")),
+                      {"exam": {"date": "2026-06-01", "room": "B2"},
+                       "a": {"score": 0.5, "attempts": 1, "next_due": "2026-03-01", "interval": 1}})
+        sched(u, "check", "--fix", "--date", T)
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertEqual(m["exam"]["date"], "2026-06-01")
+
+    def test_record_keeps_dict_metadata_on_flat_file(self):
+        u = self.unit(graph(("a", "A", "-", "high")),
+                      {"exam": {"date": "2026-06-01"},
+                       "a": {"score": 0.5, "attempts": 1, "next_due": "2026-03-01", "interval": 1}})
+        sched(u, "record", "a", "hit", "--date", T)
+        m = load(os.path.join(u, "mastery.json"))
+        self.assertEqual(m["exam"]["date"], "2026-06-01")
+        self.assertEqual(m["concepts"]["a"]["attempts"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

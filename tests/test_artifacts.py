@@ -42,7 +42,8 @@ class Anki(Base):
         out = os.path.join(u, "out")
         produced = os.listdir(out)
         self.assertEqual(len(produced), 1, produced)
-        body = open(os.path.join(out, produced[0]), encoding="utf-8").read()
+        with open(os.path.join(out, produced[0]), encoding="utf-8") as f:
+            body = f.read()
         self.assertIn("Q1", body)
         self.assertNotIn("Q2", body)
         self.assertNotIn("Q3", body)
@@ -60,7 +61,8 @@ class Inline(Base):
         out = os.path.join(self.tmp, "out.html")
         p = subprocess.run([PY, INLINE, page, out, "--images"], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stderr)
-        body = open(out, encoding="utf-8").read()
+        with open(out, encoding="utf-8") as f:
+            body = f.read()
         self.assertNotIn('href="study.css"', body)
         self.assertNotIn('src="study.js"', body)
         self.assertIn("<style>", body)
