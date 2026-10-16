@@ -414,7 +414,8 @@ python3 SKILL_DIR/scripts/schedule.py <unit> questions [add ID CONCEPT | mark ID
   session and after ingesting new material; `--fix` migrates legacy shapes and
   repairs reversible drift, never deletes a concept row, never creates a
   missing state file, and quarantines a corrupt file rather than rewriting it.
-- `rename` moves a state row after a graph rename; `questions` maintains the
+- `rename` moves a state row after a graph rename, and the `questions.json`
+  items that tracked the old id with it; `questions` maintains the
   fresh-question reserve index (`references/state.md`).
 
 ---
