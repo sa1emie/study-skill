@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **New companion skill: `canvas-lookup/`.** Read-only lookups through the
+  Canvas API: courses, planner items, announcements, assignment groups and
+  weights, syllabus text, and a search across every active course. Stdlib
+  Python, 3.9+. Install it separately; `study/` doesn't need it.
+
 ## 2.2.1 (2026-10-16)
 
 Fixes from an independent audit of 2.2. Every item has a regression test

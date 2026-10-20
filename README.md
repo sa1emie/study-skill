@@ -52,6 +52,19 @@ bash ~/.claude/skills/study/scripts/explainer/setup.sh
 Needs Python 3.10+, ffmpeg, and Homebrew on macOS (or the apt packages the
 script prints on Linux). Everything else works without it.
 
+**Optional: Canvas lookups.** If your school runs Canvas, there's a companion
+skill that reads your courses, deadlines, announcements, grade weights and
+syllabi through the API. It's read-only. With it, "what's due this week" or
+"is quiz 3 graded" gets an answer from Canvas instead of a guess.
+
+```bash
+cp -r study-skill/canvas-lookup ~/.claude/skills/
+```
+
+Setup takes a minute: make an access token in Canvas, then save it along with
+your school's Canvas address in `~/.config/canvas-lookup/.env`. The details
+are in [`canvas-lookup/SKILL.md`](canvas-lookup/SKILL.md#setup-once).
+
 ### Codex, OpenCode, and other AGENTS.md tools
 
 Run inside the folder you study in:
@@ -128,6 +141,7 @@ study/                 the skill (copy this folder to ~/.claude/skills/)
   references/          detailed rules, loaded only when needed
   scripts/             scheduler, Anki export, video pipeline, page inliner
   assets/              the HTML design system: study.css, study.js, template.html
+canvas-lookup/         optional companion skill: read-only Canvas API lookups
 study.md               the whole skill in one file, for other tools (generated)
 adapters/              Cursor rule and AGENTS.md snippet
 tests/                 test suite for the scripts and the generated file
